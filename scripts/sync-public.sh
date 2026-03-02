@@ -171,6 +171,24 @@ for p in "${INCLUDE_PATHS[@]}"; do
   done < <(git ls-tree -r --name-only HEAD -- "$p" 2>/dev/null || true)
 done
 
+# Remove any tracked files NOT under a whitelisted path (catches grandfathered files
+# like docs/ and projects/ that were committed before the whitelist approach)
+echo "Enforcing strict whitelist..."
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  IN_WHITELIST=false
+  for p in "${INCLUDE_PATHS[@]}"; do
+    if [ "$f" = "$p" ] || [[ "$f" == "$p/"* ]]; then
+      IN_WHITELIST=true
+      break
+    fi
+  done
+  if [ "$IN_WHITELIST" = false ]; then
+    git rm -f "$f" -q 2>/dev/null || true
+    echo "  - $f (not in whitelist)"
+  fi
+done < <(git ls-files)
+
 # Stage everything
 git add -A
 
