@@ -11,11 +11,19 @@ mkdir -p /app/data/checkpoints
 
 echo "[entrypoint] Ensuring data files exist..."
 
-# Copy seed files first (agents, skills-library — pre-configured)
+# Copy seed files (agents, skills-library — pre-configured).
+# Replaces files that are missing OR contain only empty defaults (from earlier seeding).
 if [ -d /app/data-seed ]; then
   for seed in /app/data-seed/*.json; do
     target="/app/data/$(basename "$seed")"
-    [ -f "$target" ] || cp "$seed" "$target"
+    if [ ! -f "$target" ]; then
+      echo "[entrypoint]   Seeding $(basename "$seed") (new)"
+      cp "$seed" "$target"
+    elif [ "$(wc -c < "$target")" -lt 50 ]; then
+      # File exists but is tiny (just an empty default like {"agents":[]})
+      echo "[entrypoint]   Seeding $(basename "$seed") (replacing empty default)"
+      cp "$seed" "$target"
+    fi
   done
 fi
 
