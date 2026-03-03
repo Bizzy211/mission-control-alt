@@ -130,6 +130,9 @@ export function buildSafeEnv(opts?: { agentTeams?: boolean }): Record<string, st
   if (process.env.TEMP) safeEnv.TEMP = process.env.TEMP;
   if (process.env.TMP) safeEnv.TMP = process.env.TMP;
 
+  // Claude Code API key — required for authentication
+  if (process.env.ANTHROPIC_API_KEY) safeEnv.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
   // Windows system vars required for node.exe and native modules.
   // Without SystemRoot, node.exe can't resolve system DLLs → silent exit code 1.
   // These are read-only system paths (no secrets).
