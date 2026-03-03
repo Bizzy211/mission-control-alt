@@ -14,6 +14,65 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
+// ─── Session validation cache ────────────────────────────────────────────────
+// Avoids calling Better Auth on every single API request. Once validated,
+// a session token is trusted for CACHE_TTL ms. This makes the system resilient
+// to transient BA outages and reduces inter-container HTTP calls.
+
+const SESSION_CACHE_TTL = 60_000; // 60 seconds
+const MAX_CACHE_SIZE = 500;
+const sessionCache = new Map<string, number>(); // token → validatedAt timestamp
+
+function isSessionCached(token: string): boolean {
+  const validatedAt = sessionCache.get(token);
+  if (!validatedAt) return false;
+  if (Date.now() - validatedAt > SESSION_CACHE_TTL) {
+    sessionCache.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function cacheSession(token: string): void {
+  // Evict oldest entries if cache is full
+  if (sessionCache.size >= MAX_CACHE_SIZE) {
+    const oldest = sessionCache.keys().next().value;
+    if (oldest) sessionCache.delete(oldest);
+  }
+  sessionCache.set(token, Date.now());
+}
+
+function invalidateSession(token: string): void {
+  sessionCache.delete(token);
+}
+
+/**
+ * Validate a session token against Better Auth, with caching.
+ * Returns true if valid, false if explicitly invalid, null if BA unreachable.
+ */
+async function validateSession(
+  betterAuthUrl: string,
+  token: string,
+): Promise<boolean | null> {
+  // Check cache first
+  if (isSessionCached(token)) return true;
+
+  try {
+    const res = await fetch(`${betterAuthUrl}/api/auth/get-session`, {
+      headers: { cookie: `better-auth.session_token=${token}` },
+    });
+    if (res.ok) {
+      cacheSession(token);
+      return true;
+    }
+    invalidateSession(token);
+    return false;
+  } catch {
+    // BA unreachable — return null to let caller decide
+    return null;
+  }
+}
+
 /**
  * Authentication Middleware
  *
@@ -28,7 +87,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // --- Auth API proxy: pass through (except signup, which is disabled) ---
+  // --- Auth API proxy: pass through ---
   if (pathname.startsWith("/api/auth/") || pathname === "/api/auth") {
     return NextResponse.next();
   }
@@ -52,16 +111,11 @@ export async function middleware(request: NextRequest) {
     const betterAuthUrl = process.env.BETTER_AUTH_URL;
     const sessionCookie = request.cookies.get("better-auth.session_token");
     if (betterAuthUrl && sessionCookie?.value) {
-      try {
-        const res = await fetch(`${betterAuthUrl}/api/auth/get-session`, {
-          headers: {
-            cookie: `better-auth.session_token=${sessionCookie.value}`,
-          },
-        });
-        if (res.ok) return NextResponse.next();
-      } catch {
-        // Better Auth unreachable — fall through to 401
-      }
+      const result = await validateSession(betterAuthUrl, sessionCookie.value);
+      if (result === true) return NextResponse.next();
+      // result === false: BA says session is invalid → 401
+      // result === null: BA unreachable → allow through (same as browser routes)
+      if (result === null) return NextResponse.next();
     }
 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,25 +136,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Validate session server-side against Better Auth
-  try {
-    const res = await fetch(`${betterAuthUrl}/api/auth/get-session`, {
-      headers: {
-        cookie: `better-auth.session_token=${sessionCookie.value}`,
-      },
-    });
+  // Validate session server-side against Better Auth (cached)
+  const result = await validateSession(betterAuthUrl, sessionCookie.value);
+  if (result === true) return NextResponse.next();
+  if (result === null) return NextResponse.next(); // BA unreachable — allow through
 
-    if (!res.ok) {
-      const response = NextResponse.redirect(new URL("/login", request.url));
-      response.cookies.delete("better-auth.session_token");
-      return response;
-    }
-
-    return NextResponse.next();
-  } catch {
-    // Better Auth unreachable — allow through to avoid locking users out
-    return NextResponse.next();
-  }
+  // Session explicitly invalid — clear cookie and redirect to login
+  const response = NextResponse.redirect(new URL("/login", request.url));
+  response.cookies.delete("better-auth.session_token");
+  return response;
 }
 
 export const config = {
