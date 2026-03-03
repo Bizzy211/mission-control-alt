@@ -3,25 +3,29 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
+  /* Soft grey base — easy on the eyes */
+  --background: oklch(0.965 0 0);
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  /* Cards float above the grey base */
+  --card: oklch(0.99 0 0);
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.99 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0.064 270.94);
+  /* Indigo primary — consistent with dark theme */
+  --primary: oklch(0.205 0.064 265);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0.064 270.94);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0.022 270.94);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0.064 270.94);
+  /* Neutral secondary surfaces */
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.205 0.064 265);
+  --muted: oklch(0.94 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.205 0.064 265);
   --destructive: oklch(0.577 0.245 27.33);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0.165 254.62);
+  --border: oklch(0.90 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.55 0.2 265);
   --radius: 0.625rem;
 
   --chart-1: oklch(0.646 0.222 41.12);
@@ -30,23 +34,24 @@
   --chart-4: oklch(0.828 0.189 84.43);
   --chart-5: oklch(0.769 0.188 70.08);
 
-  --sidebar-background: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.556 0.022 270.94);
-  --sidebar-primary: oklch(0.205 0.064 270.94);
+  /* Sidebar — slightly darker for hierarchy */
+  --sidebar-background: oklch(0.94 0 0);
+  --sidebar-foreground: oklch(0.45 0 0);
+  --sidebar-primary: oklch(0.205 0.064 265);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0.064 270.94);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0.165 254.62);
+  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0.064 265);
+  --sidebar-border: oklch(0.90 0 0);
+  --sidebar-ring: oklch(0.55 0.2 265);
 
   /* Eisenhower quadrant accent colors — light mode */
   --quadrant-do: oklch(0.55 0.22 25);
   --quadrant-schedule: oklch(0.50 0.22 265);
   --quadrant-delegate: oklch(0.55 0.18 80);
-  --quadrant-eliminate: oklch(0.45 0.03 260);
+  --quadrant-eliminate: oklch(0.45 0 0);
 
   /* Status colors — light mode */
-  --status-not-started: oklch(0.55 0.03 260);
+  --status-not-started: oklch(0.50 0 0);
   --status-in-progress: oklch(0.50 0.22 265);
   --status-done: oklch(0.50 0.20 155);
 
