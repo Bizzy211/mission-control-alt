@@ -2,6 +2,7 @@
 set -e
 
 mkdir -p /app/data/checkpoints
+mkdir -p /app/data/deliverables
 
 # ─── Seed data files ────────────────────────────────────────────────────────
 # Files in /app/data-seed/ are baked into the Docker image and contain
