@@ -14,6 +14,17 @@ import {
   Bot,
   Zap,
   CircleDot,
+  Monitor,
+  Server,
+  Palette,
+  Container,
+  MessageSquare,
+  Brain,
+  Cpu,
+  FileText,
+  Shield,
+  BookOpen,
+  Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +46,17 @@ const iconMap: Record<string, typeof User> = {
   BarChart3,
   Bot,
   Zap,
+  Monitor,
+  Server,
+  Palette,
+  Container,
+  MessageSquare,
+  Brain,
+  Cpu,
+  FileText,
+  Shield,
+  BookOpen,
+  Bug,
 };
 
 function getAgentIcon(iconName: string) {

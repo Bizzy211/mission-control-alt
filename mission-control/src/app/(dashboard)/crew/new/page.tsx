@@ -21,6 +21,13 @@ import {
   Brain,
   Palette,
   HeartPulse,
+  Monitor,
+  Server,
+  Container,
+  MessageSquare,
+  Cpu,
+  FileText,
+  Bug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +54,13 @@ const ICON_OPTIONS = [
   { name: "Brain", icon: Brain },
   { name: "Palette", icon: Palette },
   { name: "HeartPulse", icon: HeartPulse },
+  { name: "Monitor", icon: Monitor },
+  { name: "Server", icon: Server },
+  { name: "Container", icon: Container },
+  { name: "MessageSquare", icon: MessageSquare },
+  { name: "Cpu", icon: Cpu },
+  { name: "FileText", icon: FileText },
+  { name: "Bug", icon: Bug },
 ];
 
 export default function NewAgentPage() {
