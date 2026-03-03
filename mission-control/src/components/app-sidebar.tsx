@@ -17,6 +17,7 @@ import {
   User,
   Inbox,
   Activity,
+  FolderOpen,
   HelpCircle,
   X,
   Users,
@@ -56,6 +57,7 @@ const commsLinks = [
   { href: "/activity", label: "Activity", icon: Activity, badgeKey: null },
   { href: "/decisions", label: "Decisions", icon: HelpCircle, badgeKey: "pendingDecisions" as const },
   { href: "/brain-dump", label: "Brain Dump", icon: Lightbulb, badgeKey: null },
+  { href: "/files", label: "Files", icon: FolderOpen, badgeKey: null },
 ];
 
 // Dynamic icon lookup by name
