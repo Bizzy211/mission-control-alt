@@ -21,11 +21,14 @@ async function proxyToAuth(request: NextRequest) {
   const url = new URL(request.url);
   const targetUrl = `${authUrl}${url.pathname}${url.search}`;
 
-  // Forward the request with the correct Origin for Better Auth's
-  // trusted-origins check (server-side fetch has no Origin by default)
+  // Forward the request, preserving the browser's Origin header
+  // so Better Auth can validate it against trustedOrigins.
+  // If no Origin (e.g. server-side call), use the MC domain.
   const headers = new Headers(request.headers);
   headers.delete("host");
-  headers.set("origin", authUrl);
+  if (!headers.get("origin")) {
+    headers.set("origin", url.origin);
+  }
 
   const body = request.method !== "GET" && request.method !== "HEAD"
     ? await request.arrayBuffer()
