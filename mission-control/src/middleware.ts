@@ -33,35 +33,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // --- Other API routes: MC_API_TOKEN check ---
+  // --- Other API routes: MC_API_TOKEN OR valid session cookie ---
   if (pathname.startsWith("/api/")) {
     const token = process.env.MC_API_TOKEN;
     if (!token) return NextResponse.next();
 
+    // Option 1: Bearer token (API-to-API calls, daemon, etc.)
     const authHeader = request.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: "Missing Authorization header" },
-        { status: 401 },
-      );
+    if (authHeader) {
+      const parts = authHeader.split(" ");
+      if (parts.length === 2 && parts[0] === "Bearer" && timingSafeEqual(parts[1], token)) {
+        return NextResponse.next();
+      }
+      return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
 
-    const parts = authHeader.split(" ");
-    if (parts.length !== 2 || parts[0] !== "Bearer") {
-      return NextResponse.json(
-        { error: "Invalid Authorization format. Expected: Bearer <token>" },
-        { status: 401 },
-      );
+    // Option 2: Valid session cookie (browser dashboard calls)
+    const betterAuthUrl = process.env.BETTER_AUTH_URL;
+    const sessionCookie = request.cookies.get("better-auth.session_token");
+    if (betterAuthUrl && sessionCookie?.value) {
+      try {
+        const res = await fetch(`${betterAuthUrl}/api/auth/get-session`, {
+          headers: {
+            cookie: `better-auth.session_token=${sessionCookie.value}`,
+          },
+        });
+        if (res.ok) return NextResponse.next();
+      } catch {
+        // Better Auth unreachable — fall through to 401
+      }
     }
 
-    if (!timingSafeEqual(parts[1], token)) {
-      return NextResponse.json(
-        { error: "Invalid API token" },
-        { status: 401 },
-      );
-    }
-
-    return NextResponse.next();
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // --- Browser routes: Better Auth session check ---
