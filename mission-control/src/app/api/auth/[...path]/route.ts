@@ -21,9 +21,11 @@ async function proxyToAuth(request: NextRequest) {
   const url = new URL(request.url);
   const targetUrl = `${authUrl}${url.pathname}${url.search}`;
 
-  // Forward the request
+  // Forward the request with the correct Origin for Better Auth's
+  // trusted-origins check (server-side fetch has no Origin by default)
   const headers = new Headers(request.headers);
   headers.delete("host");
+  headers.set("origin", authUrl);
 
   const body = request.method !== "GET" && request.method !== "HEAD"
     ? await request.arrayBuffer()
