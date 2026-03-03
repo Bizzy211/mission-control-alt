@@ -26,6 +26,5 @@ COPY --from=build /app/data-seed ./data-seed
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh && mkdir -p /app/data
 
-VOLUME ["/app/data"]
 EXPOSE 3000
 ENTRYPOINT ["./entrypoint.sh"]
