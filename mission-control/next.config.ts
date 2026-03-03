@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  // Proxy Better Auth API so cookies are set on this domain
+  async rewrites() {
+    const authUrl = process.env.BETTER_AUTH_URL;
+    if (!authUrl) return [];
+    return [
+      {
+        source: "/api/auth/:path*",
+        destination: `${authUrl}/api/auth/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

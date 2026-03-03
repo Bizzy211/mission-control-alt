@@ -15,47 +15,98 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * API Authentication Middleware
+ * Authentication Middleware
  *
- * When MC_API_TOKEN is set in .env.local, all /api/* requests require
- * a matching Authorization: Bearer <token> header.
+ * Two layers:
+ * 1. API routes (/api/* except /api/auth/*): MC_API_TOKEN Bearer auth
+ * 2. Browser routes (everything else): Better Auth session cookie
  *
- * When MC_API_TOKEN is NOT set, all requests pass through (backwards
- * compatible for local-only development with zero configuration).
+ * When BETTER_AUTH_URL is not set, browser auth is skipped (local dev).
+ * Auth API routes (/api/auth/*) are proxied via next.config rewrites
+ * and always pass through here.
  */
-export function middleware(request: NextRequest) {
-  const token = process.env.MC_API_TOKEN;
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-  // No token configured = open access (default local dev experience)
-  if (!token) return NextResponse.next();
-
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) {
-    return NextResponse.json(
-      { error: "Missing Authorization header" },
-      { status: 401 }
-    );
+  // --- Auth API proxy: always pass through ---
+  if (pathname.startsWith("/api/auth/") || pathname === "/api/auth") {
+    return NextResponse.next();
   }
 
-  // Expect "Bearer <token>"
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
-    return NextResponse.json(
-      { error: "Invalid Authorization format. Expected: Bearer <token>" },
-      { status: 401 }
-    );
+  // --- Other API routes: MC_API_TOKEN check ---
+  if (pathname.startsWith("/api/")) {
+    const token = process.env.MC_API_TOKEN;
+    if (!token) return NextResponse.next();
+
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "Missing Authorization header" },
+        { status: 401 },
+      );
+    }
+
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
+      return NextResponse.json(
+        { error: "Invalid Authorization format. Expected: Bearer <token>" },
+        { status: 401 },
+      );
+    }
+
+    if (!timingSafeEqual(parts[1], token)) {
+      return NextResponse.json(
+        { error: "Invalid API token" },
+        { status: 401 },
+      );
+    }
+
+    return NextResponse.next();
   }
 
-  if (!timingSafeEqual(parts[1], token)) {
-    return NextResponse.json(
-      { error: "Invalid API token" },
-      { status: 401 }
-    );
+  // --- Browser routes: Better Auth session check ---
+  const betterAuthUrl = process.env.BETTER_AUTH_URL;
+  if (!betterAuthUrl) return NextResponse.next();
+
+  // Public pages — no auth required
+  if (pathname === "/login") {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // Check for session cookie (set via proxied /api/auth endpoints)
+  const sessionCookie = request.cookies.get("better-auth.session_token");
+  if (!sessionCookie?.value) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Validate session server-side against Better Auth
+  try {
+    const res = await fetch(`${betterAuthUrl}/api/auth/get-session`, {
+      headers: {
+        cookie: `better-auth.session_token=${sessionCookie.value}`,
+      },
+    });
+
+    if (!res.ok) {
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.delete("better-auth.session_token");
+      return response;
+    }
+
+    return NextResponse.next();
+  } catch {
+    // Better Auth unreachable — allow through to avoid locking users out
+    return NextResponse.next();
+  }
 }
 
 export const config = {
-  matcher: "/api/:path*",
+  matcher: [
+    /*
+     * Match all paths except:
+     * - _next/static, _next/image (Next.js internals)
+     * - favicon.ico, icon.svg (static assets)
+     */
+    "/((?!_next/static|_next/image|favicon\\.ico|icon\\.svg).*)",
+  ],
 };
