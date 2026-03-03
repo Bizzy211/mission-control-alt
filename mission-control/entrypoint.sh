@@ -3,8 +3,23 @@ set -e
 
 mkdir -p /app/data/checkpoints
 
-# Seed required JSON files with empty defaults if they don't exist
+# ─── Seed data files ────────────────────────────────────────────────────────
+# Files in /app/data-seed/ are baked into the Docker image and contain
+# pre-configured agents, skills, etc. On first boot (or after a volume wipe),
+# these get copied into /app/data/ so the app starts ready to go.
+# Existing files are never overwritten — user data is preserved.
+
 echo "[entrypoint] Ensuring data files exist..."
+
+# Copy seed files first (agents, skills-library — pre-configured)
+if [ -d /app/data-seed ]; then
+  for seed in /app/data-seed/*.json; do
+    target="/app/data/$(basename "$seed")"
+    [ -f "$target" ] || cp "$seed" "$target"
+  done
+fi
+
+# Remaining files get empty defaults if not seeded and not existing
 [ -f /app/data/tasks.json ]        || echo '{"tasks":[]}'       > /app/data/tasks.json
 [ -f /app/data/tasks-archive.json ] || echo '{"tasks":[]}'       > /app/data/tasks-archive.json
 [ -f /app/data/goals.json ]        || echo '{"goals":[]}'       > /app/data/goals.json
