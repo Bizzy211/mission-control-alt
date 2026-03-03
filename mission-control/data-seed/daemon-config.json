@@ -1,0 +1,20 @@
+{
+  "polling": {
+    "enabled": true,
+    "intervalMinutes": 5
+  },
+  "concurrency": {
+    "maxParallelAgents": 3
+  },
+  "execution": {
+    "maxTurns": 25,
+    "timeoutMinutes": 30,
+    "retries": 1,
+    "retryDelayMinutes": 5,
+    "skipPermissions": true,
+    "allowedTools": [],
+    "agentTeams": false,
+    "claudeBinaryPath": null,
+    "maxTaskContinuations": 2
+  }
+}
