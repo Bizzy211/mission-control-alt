@@ -57,33 +57,33 @@
 }
 
 .dark {
-  /* Deep navy blue base — identifiably blue, not black */
-  --background: oklch(0.17 0.035 250);
-  --foreground: oklch(0.93 0.008 250);
+  /* Near-black neutral base */
+  --background: oklch(0.13 0 0);
+  --foreground: oklch(0.93 0 0);
   /* Elevated card surface */
-  --card: oklch(0.20 0.035 250);
-  --card-foreground: oklch(0.93 0.008 250);
+  --card: oklch(0.17 0 0);
+  --card-foreground: oklch(0.93 0 0);
   /* Popovers slightly above cards */
-  --popover: oklch(0.22 0.035 250);
-  --popover-foreground: oklch(0.93 0.008 250);
-  /* Vibrant indigo primary */
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.93 0 0);
+  /* Vibrant indigo primary — pops against neutral darks */
   --primary: oklch(0.65 0.2 265);
   --primary-foreground: oklch(0.98 0 0);
   /* Subtle secondary surface */
-  --secondary: oklch(0.25 0.030 250);
-  --secondary-foreground: oklch(0.88 0.008 250);
+  --secondary: oklch(0.20 0 0);
+  --secondary-foreground: oklch(0.88 0 0);
   /* Muted for subdued backgrounds */
-  --muted: oklch(0.23 0.030 250);
-  --muted-foreground: oklch(0.70 0.020 250);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.55 0 0);
   /* Accent — slightly brighter surface */
-  --accent: oklch(0.26 0.035 250);
-  --accent-foreground: oklch(0.93 0.008 250);
+  --accent: oklch(0.21 0 0);
+  --accent-foreground: oklch(0.93 0 0);
   /* Destructive red */
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
-  /* Subtle borders with blue tint */
-  --border: oklch(0.28 0.025 250);
-  --input: oklch(0.25 0.025 250);
+  /* Subtle neutral borders */
+  --border: oklch(0.24 0 0);
+  --input: oklch(0.20 0 0);
   --ring: oklch(0.65 0.2 265);
 
   /* Chart colors — vibrant on dark */
@@ -93,24 +93,24 @@
   --chart-4: oklch(0.65 0.22 310);
   --chart-5: oklch(0.65 0.22 25);
 
-  /* Sidebar — deeper navy for visual hierarchy */
-  --sidebar-background: oklch(0.14 0.040 250);
-  --sidebar-foreground: oklch(0.70 0.020 250);
+  /* Sidebar — deeper for visual hierarchy */
+  --sidebar-background: oklch(0.10 0 0);
+  --sidebar-foreground: oklch(0.55 0 0);
   --sidebar-primary: oklch(0.65 0.2 265);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.21 0.035 250);
-  --sidebar-accent-foreground: oklch(0.93 0.008 250);
-  --sidebar-border: oklch(0.23 0.025 250);
+  --sidebar-accent: oklch(0.17 0 0);
+  --sidebar-accent-foreground: oklch(0.93 0 0);
+  --sidebar-border: oklch(0.20 0 0);
   --sidebar-ring: oklch(0.65 0.2 265);
 
   /* Eisenhower quadrant accent colors */
   --quadrant-do: oklch(0.55 0.18 25);
   --quadrant-schedule: oklch(0.55 0.18 265);
   --quadrant-delegate: oklch(0.6 0.16 80);
-  --quadrant-eliminate: oklch(0.4 0.025 250);
+  --quadrant-eliminate: oklch(0.35 0 0);
 
   /* Status colors */
-  --status-not-started: oklch(0.5 0.025 250);
+  --status-not-started: oklch(0.45 0 0);
   --status-in-progress: oklch(0.6 0.18 265);
   --status-done: oklch(0.6 0.17 155);
 
@@ -275,10 +275,10 @@ nextjs-portal {
     background: transparent;
   }
   .dark ::-webkit-scrollbar-thumb {
-    background: oklch(0.32 0.02 250);
+    background: oklch(0.30 0 0);
     border-radius: 4px;
   }
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.40 0.025 250);
+    background: oklch(0.38 0 0);
   }
 }
