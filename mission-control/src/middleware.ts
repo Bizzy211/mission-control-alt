@@ -30,9 +30,6 @@ export async function middleware(request: NextRequest) {
 
   // --- Auth API proxy: pass through (except signup, which is disabled) ---
   if (pathname.startsWith("/api/auth/") || pathname === "/api/auth") {
-    if (pathname.startsWith("/api/auth/sign-up")) {
-      return NextResponse.json({ error: "Registration disabled" }, { status: 403 });
-    }
     return NextResponse.next();
   }
 
