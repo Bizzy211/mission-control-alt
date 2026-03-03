@@ -2,19 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  FolderOpen,
-  File,
-  FileText,
-  FileCode,
-  FileJson,
-  ChevronRight,
-  Download,
-  ArrowLeft,
-  Folder,
-  RefreshCw,
-  Home,
-  Clock,
-  HardDrive,
+  FolderOpen, File, FileText, FileCode, FileJson,
+  ChevronRight, Download, ArrowLeft, Folder, RefreshCw,
+  Home, Clock, HardDrive, Search, Music, Film, FileImage,
+  FileSpreadsheet, Globe, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -22,10 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/error-state";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark-dimmed.css";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+type ViewerType = "markdown" | "code" | "json" | "csv" | "pdf" | "image" | "html" | "docx" | "audio" | "video" | "unsupported";
 
 interface FileEntry {
   name: string;
@@ -41,16 +39,85 @@ interface DirResponse {
   entries: FileEntry[];
 }
 
-interface FileContentResponse {
-  type: "file";
+interface FileInfo {
   name: string;
-  content: string;
-  mime: string;
   size: number;
   modified: string;
 }
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const EXT_VIEWER_MAP: Record<string, ViewerType> = {
+  md: "markdown",
+  pdf: "pdf",
+  csv: "csv",
+  docx: "docx",
+  html: "html", htm: "html",
+  png: "image", jpg: "image", jpeg: "image", gif: "image",
+  svg: "image", webp: "image", ico: "image", bmp: "image", avif: "image",
+  mp3: "audio", wav: "audio", ogg: "audio", flac: "audio", aac: "audio", m4a: "audio",
+  mp4: "video", webm: "video", mov: "video", avi: "video", mkv: "video",
+  json: "json",
+  ts: "code", tsx: "code", js: "code", jsx: "code",
+  py: "code", sh: "code", bash: "code",
+  css: "code", sql: "code", xml: "code",
+  yaml: "code", yml: "code", toml: "code",
+  txt: "code", log: "code", env: "code", conf: "code",
+  ini: "code", cfg: "code",
+};
+
+const TEXT_VIEWERS = new Set<ViewerType>(["markdown", "code", "json", "csv", "html", "docx"]);
+
+const EXT_BADGES: Record<string, { label: string; color: string }> = {
+  md: { label: "MD", color: "bg-purple-500/15 text-purple-500" },
+  json: { label: "JSON", color: "bg-amber-500/15 text-amber-500" },
+  ts: { label: "TS", color: "bg-blue-500/15 text-blue-500" },
+  tsx: { label: "TSX", color: "bg-blue-500/15 text-blue-500" },
+  js: { label: "JS", color: "bg-yellow-500/15 text-yellow-500" },
+  jsx: { label: "JSX", color: "bg-yellow-500/15 text-yellow-500" },
+  py: { label: "PY", color: "bg-green-500/15 text-green-500" },
+  sh: { label: "SH", color: "bg-lime-500/15 text-lime-500" },
+  pdf: { label: "PDF", color: "bg-red-500/15 text-red-500" },
+  csv: { label: "CSV", color: "bg-emerald-500/15 text-emerald-500" },
+  html: { label: "HTML", color: "bg-orange-500/15 text-orange-500" },
+  htm: { label: "HTML", color: "bg-orange-500/15 text-orange-500" },
+  css: { label: "CSS", color: "bg-pink-500/15 text-pink-500" },
+  docx: { label: "DOCX", color: "bg-blue-600/15 text-blue-600" },
+  png: { label: "PNG", color: "bg-violet-500/15 text-violet-500" },
+  jpg: { label: "JPG", color: "bg-violet-500/15 text-violet-500" },
+  jpeg: { label: "JPG", color: "bg-violet-500/15 text-violet-500" },
+  gif: { label: "GIF", color: "bg-violet-500/15 text-violet-500" },
+  svg: { label: "SVG", color: "bg-violet-500/15 text-violet-500" },
+  webp: { label: "WEBP", color: "bg-violet-500/15 text-violet-500" },
+  mp3: { label: "MP3", color: "bg-fuchsia-500/15 text-fuchsia-500" },
+  wav: { label: "WAV", color: "bg-fuchsia-500/15 text-fuchsia-500" },
+  mp4: { label: "MP4", color: "bg-rose-500/15 text-rose-500" },
+  webm: { label: "WEBM", color: "bg-rose-500/15 text-rose-500" },
+  txt: { label: "TXT", color: "bg-gray-500/15 text-gray-500" },
+  log: { label: "LOG", color: "bg-gray-500/15 text-gray-500" },
+  sql: { label: "SQL", color: "bg-cyan-500/15 text-cyan-500" },
+  xml: { label: "XML", color: "bg-teal-500/15 text-teal-500" },
+  yaml: { label: "YAML", color: "bg-teal-500/15 text-teal-500" },
+  yml: { label: "YAML", color: "bg-teal-500/15 text-teal-500" },
+};
+
+const LANG_MAP: Record<string, string> = {
+  ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
+  py: "python", sh: "bash", bash: "bash",
+  css: "css", html: "html", htm: "html",
+  json: "json", yaml: "yaml", yml: "yaml",
+  sql: "sql", xml: "xml", md: "markdown",
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+function ext(name: string): string {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function getViewerType(name: string): ViewerType {
+  return EXT_VIEWER_MAP[ext(name)] ?? "unsupported";
+}
 
 function formatSize(bytes: number | null): string {
   if (bytes === null) return "—";
@@ -75,87 +142,90 @@ function formatDate(iso: string): string {
 
 function getFileIcon(name: string, type: "file" | "directory") {
   if (type === "directory") return Folder;
-  const ext = name.split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "md": return FileText;
+  const e = ext(name);
+  if (e === "md") return FileText;
+  if (e === "json") return FileJson;
+  if (e === "pdf") return FileText;
+  if (e === "csv") return FileSpreadsheet;
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp", "avif", "bmp", "ico"].includes(e)) return FileImage;
+  if (["mp3", "wav", "ogg", "flac", "aac", "m4a"].includes(e)) return Music;
+  if (["mp4", "webm", "mov", "avi", "mkv"].includes(e)) return Film;
+  if (["html", "htm"].includes(e)) return Globe;
+  if (["docx"].includes(e)) return FileText;
+  if (["ts", "tsx", "js", "jsx", "py", "sh", "css", "sql", "xml"].includes(e)) return FileCode;
+  return File;
+}
+
+function getViewerIcon(type: ViewerType) {
+  switch (type) {
+    case "markdown": return FileText;
+    case "pdf": return FileText;
+    case "image": return FileImage;
+    case "audio": return Music;
+    case "video": return Film;
+    case "csv": return FileSpreadsheet;
+    case "html": return Globe;
+    case "docx": return FileText;
     case "json": return FileJson;
-    case "ts": case "tsx": case "js": case "jsx": case "py": case "sh":
-    case "css": case "html": case "sql": return FileCode;
+    case "code": return FileCode;
     default: return File;
   }
 }
 
-function getLanguage(name: string): string {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  const map: Record<string, string> = {
-    ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
-    py: "python", sh: "bash", css: "css", html: "html",
-    json: "json", yaml: "yaml", yml: "yaml", sql: "sql",
-    xml: "xml", md: "markdown", txt: "text",
+// ─── CSV Parser ─────────────────────────────────────────────────────────────
+
+function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+  const lines = text.split("\n").filter((l) => l.trim());
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const parse = (line: string) => {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === "," && !inQuotes) { result.push(current.trim()); current = ""; continue; }
+      current += ch;
+    }
+    result.push(current.trim());
+    return result;
   };
-  return map[ext] ?? "text";
+  return { headers: parse(lines[0]), rows: lines.slice(1).map(parse) };
 }
 
-// ─── Simple Markdown Renderer ───────────────────────────────────────────────
+// ─── Markdown Components ────────────────────────────────────────────────────
 
-function renderMarkdown(raw: string): string {
-  let html = raw;
-
-  // Escape HTML
-  html = html
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // Code blocks (fenced)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
-    return `<pre class="mk-pre"><code class="mk-code" data-lang="${lang}">${code.trim()}</code></pre>`;
-  });
-
-  // Inline code
-  html = html.replace(/`([^`\n]+)`/g, '<code class="mk-inline-code">$1</code>');
-
-  // Headings
-  html = html.replace(/^#### (.+)$/gm, '<h4 class="mk-h4">$1</h4>');
-  html = html.replace(/^### (.+)$/gm, '<h3 class="mk-h3">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="mk-h2">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="mk-h1">$1</h1>');
-
-  // Horizontal rule
-  html = html.replace(/^---+$/gm, '<hr class="mk-hr" />');
-
-  // Bold + italic
-  html = html.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-
-  // Links
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="mk-link">$1</a>',
-  );
-
-  // Unordered lists
-  html = html.replace(/^(\s*)[-*] (.+)$/gm, '$1<li class="mk-li">$2</li>');
-  // Wrap consecutive li elements in ul
-  html = html.replace(/((?:<li class="mk-li">.*<\/li>\n?)+)/g, '<ul class="mk-ul">$1</ul>');
-
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="mk-oli">$1</li>');
-  html = html.replace(/((?:<li class="mk-oli">.*<\/li>\n?)+)/g, '<ol class="mk-ol">$1</ol>');
-
-  // Blockquotes
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="mk-bq">$1</blockquote>');
-
-  // Paragraphs: wrap remaining non-empty, non-tag lines
-  html = html.replace(/^(?!<[a-z/])(.+)$/gm, (_, line) => {
-    const trimmed = line.trim();
-    if (!trimmed) return "";
-    return `<p class="mk-p">${trimmed}</p>`;
-  });
-
-  return html;
-}
+const mdComponents = {
+  h1: ({ children, ...p }: React.ComponentProps<"h1">) => <h1 className="text-2xl font-bold mt-8 mb-4 first:mt-0 tracking-tight" {...p}>{children}</h1>,
+  h2: ({ children, ...p }: React.ComponentProps<"h2">) => <h2 className="text-xl font-semibold mt-8 mb-3 pb-2 border-b border-border" {...p}>{children}</h2>,
+  h3: ({ children, ...p }: React.ComponentProps<"h3">) => <h3 className="text-lg font-semibold mt-6 mb-2" {...p}>{children}</h3>,
+  h4: ({ children, ...p }: React.ComponentProps<"h4">) => <h4 className="text-base font-semibold mt-5 mb-1" {...p}>{children}</h4>,
+  p: ({ children, ...p }: React.ComponentProps<"p">) => <p className="mb-4 leading-7 text-foreground/90" {...p}>{children}</p>,
+  a: ({ children, ...p }: React.ComponentProps<"a">) => <a className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity" target="_blank" rel="noopener noreferrer" {...p}>{children}</a>,
+  ul: ({ children, ...p }: React.ComponentProps<"ul">) => <ul className="list-disc pl-6 mb-4 space-y-1.5" {...p}>{children}</ul>,
+  ol: ({ children, ...p }: React.ComponentProps<"ol">) => <ol className="list-decimal pl-6 mb-4 space-y-1.5" {...p}>{children}</ol>,
+  li: ({ children, ...p }: React.ComponentProps<"li">) => <li className="leading-7" {...p}>{children}</li>,
+  blockquote: ({ children, ...p }: React.ComponentProps<"blockquote">) => (
+    <blockquote className="border-l-[3px] border-primary/60 pl-4 my-4 text-muted-foreground italic" {...p}>{children}</blockquote>
+  ),
+  hr: (p: React.ComponentProps<"hr">) => <hr className="my-8 border-border" {...p} />,
+  pre: ({ children, ...p }: React.ComponentProps<"pre">) => (
+    <pre className="rounded-lg my-4 overflow-hidden [&>code]:block [&>code]:p-4 [&>code]:overflow-x-auto text-sm" {...p}>{children}</pre>
+  ),
+  code: ({ className, children, ...p }: React.ComponentProps<"code"> & { className?: string }) => {
+    if (className && /language-/.test(className)) {
+      return <code className={className} {...p}>{children}</code>;
+    }
+    return <code className="bg-muted px-1.5 py-0.5 rounded text-[0.85em] font-mono" {...p}>{children}</code>;
+  },
+  table: ({ children, ...p }: React.ComponentProps<"table">) => (
+    <div className="my-4 overflow-x-auto rounded-lg border"><table className="w-full text-sm" {...p}>{children}</table></div>
+  ),
+  thead: ({ children, ...p }: React.ComponentProps<"thead">) => <thead className="bg-muted/50" {...p}>{children}</thead>,
+  th: ({ children, ...p }: React.ComponentProps<"th">) => <th className="px-4 py-2.5 text-left font-semibold text-xs uppercase tracking-wider border-b" {...p}>{children}</th>,
+  td: ({ children, ...p }: React.ComponentProps<"td">) => <td className="px-4 py-2 border-b border-border/40" {...p}>{children}</td>,
+  img: ({ alt, ...p }: React.ComponentProps<"img">) => <img alt={alt ?? ""} className="max-w-full rounded-lg my-4 shadow-sm" {...p} />,
+  input: ({ ...p }: React.ComponentProps<"input">) => <input className="mr-2 accent-primary" disabled {...p} />,
+};
 
 // ─── Page Component ─────────────────────────────────────────────────────────
 
@@ -164,9 +234,14 @@ export default function FilesPage() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState("");
 
+  // Viewer state
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [fileContent, setFileContent] = useState<FileContentResponse | null>(null);
+  const [viewerType, setViewerType] = useState<ViewerType | null>(null);
+  const [textContent, setTextContent] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
 
@@ -178,11 +253,12 @@ export default function FilesPage() {
       const res = await fetch(`/api/files?path=${encodeURIComponent(dirPath)}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `Failed to load directory`);
+        throw new Error(data.error ?? "Failed to load directory");
       }
       const data = (await res.json()) as DirResponse;
       setEntries(data.entries);
       setCurrentPath(dirPath);
+      setSearchFilter("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -190,92 +266,247 @@ export default function FilesPage() {
     }
   }, []);
 
-  // ── Fetch file content ───────────────────────────────────────────────
-  const fetchFile = useCallback(async (filePath: string) => {
+  // ── Handle file selection ────────────────────────────────────────────
+  const selectFile = useCallback(async (filePath: string) => {
+    const name = filePath.split("/").pop() ?? "";
+    const type = getViewerType(name);
+
+    setSelectedFile(filePath);
+    setViewerType(type);
     setFileLoading(true);
     setFileError(null);
-    setSelectedFile(filePath);
+    setTextContent(null);
+    setPreviewUrl(null);
+
     try {
-      const res = await fetch(`/api/files?path=${encodeURIComponent(filePath)}&content=true`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Failed to load file");
+      if (TEXT_VIEWERS.has(type)) {
+        const res = await fetch(`/api/files?path=${encodeURIComponent(filePath)}&content=true`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? "Failed to load file");
+        }
+        const data = await res.json();
+        setTextContent(data.content);
+        setFileInfo({ name: data.name, size: data.size, modified: data.modified });
+      } else {
+        // Binary — set preview URL and fetch metadata
+        setPreviewUrl(`/api/files/download?path=${encodeURIComponent(filePath)}&inline=true`);
+        const res = await fetch(`/api/files?path=${encodeURIComponent(filePath)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setFileInfo({ name: data.name, size: data.size, modified: data.modified });
+        }
       }
-      const data = (await res.json()) as FileContentResponse;
-      setFileContent(data);
     } catch (err) {
       setFileError(err instanceof Error ? err.message : "Unknown error");
-      setFileContent(null);
     } finally {
       setFileLoading(false);
     }
   }, []);
 
   // Initial load
-  useEffect(() => {
-    fetchDir("");
-  }, [fetchDir]);
+  useEffect(() => { fetchDir(""); }, [fetchDir]);
 
-  // ── Navigation helpers ───────────────────────────────────────────────
+  // ── Navigation ──────────────────────────────────────────────────────
+  const clearViewer = () => { setSelectedFile(null); setViewerType(null); setTextContent(null); setPreviewUrl(null); setFileInfo(null); setFileError(null); };
   const navigateTo = (entry: FileEntry) => {
     const newPath = currentPath ? `${currentPath}/${entry.name}` : entry.name;
-    if (entry.type === "directory") {
-      fetchDir(newPath);
-      setSelectedFile(null);
-      setFileContent(null);
-    } else if (entry.isText) {
-      fetchFile(newPath);
-    }
+    if (entry.type === "directory") { fetchDir(newPath); clearViewer(); }
+    else { selectFile(newPath); }
   };
+  const navigateUp = () => { fetchDir(currentPath.split("/").slice(0, -1).join("/")); clearViewer(); };
+  const navigateToSegment = (i: number) => { fetchDir(currentPath.split("/").filter(Boolean).slice(0, i + 1).join("/")); clearViewer(); };
+  const navigateHome = () => { fetchDir(""); clearViewer(); };
 
-  const navigateUp = () => {
-    const parent = currentPath.split("/").slice(0, -1).join("/");
-    fetchDir(parent);
-    setSelectedFile(null);
-    setFileContent(null);
-  };
+  const pathSegments = useMemo(() => currentPath.split("/").filter(Boolean), [currentPath]);
 
-  const navigateToSegment = (index: number) => {
-    const segments = currentPath.split("/").filter(Boolean);
-    const newPath = segments.slice(0, index + 1).join("/");
-    fetchDir(newPath);
-    setSelectedFile(null);
-    setFileContent(null);
-  };
+  const downloadUrl = selectedFile ? `/api/files/download?path=${encodeURIComponent(selectedFile)}` : null;
 
-  const navigateHome = () => {
-    fetchDir("");
-    setSelectedFile(null);
-    setFileContent(null);
-  };
+  // ── Filtered entries ─────────────────────────────────────────────────
+  const filteredEntries = useMemo(() => {
+    if (!searchFilter) return entries;
+    const q = searchFilter.toLowerCase();
+    return entries.filter((e) => e.name.toLowerCase().includes(q));
+  }, [entries, searchFilter]);
 
-  // ── Path segments for breadcrumb ─────────────────────────────────────
-  const pathSegments = useMemo(
-    () => currentPath.split("/").filter(Boolean),
-    [currentPath],
-  );
-
-  // ── Download URL ─────────────────────────────────────────────────────
-  const downloadUrl = selectedFile
-    ? `/api/files/download?path=${encodeURIComponent(selectedFile)}`
-    : null;
-
-  // ── Render markdown or code ──────────────────────────────────────────
-  const renderedContent = useMemo(() => {
-    if (!fileContent) return null;
-    if (fileContent.mime === "text/markdown") {
-      return { type: "markdown" as const, html: renderMarkdown(fileContent.content) };
-    }
-    return { type: "code" as const, language: getLanguage(fileContent.name), code: fileContent.content };
-  }, [fileContent]);
-
-  // ─── Stats ───────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const dirs = entries.filter((e) => e.type === "directory").length;
     const files = entries.filter((e) => e.type === "file").length;
-    const totalSize = entries.reduce((sum, e) => sum + (e.size ?? 0), 0);
-    return { dirs, files, totalSize };
+    return { dirs, files };
   }, [entries]);
+
+  // ─── Viewer renderer ─────────────────────────────────────────────────
+  function renderViewer() {
+    if (!viewerType || !fileInfo) return null;
+    const dl = downloadUrl ?? "#";
+
+    switch (viewerType) {
+      case "markdown":
+        return (
+          <article className="max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={mdComponents}>
+              {textContent ?? ""}
+            </ReactMarkdown>
+          </article>
+        );
+
+      case "json":
+        try {
+          const formatted = JSON.stringify(JSON.parse(textContent ?? ""), null, 2);
+          return (
+            <pre className="rounded-lg overflow-hidden"><code className="hljs language-json block p-4 overflow-x-auto text-sm">{formatted}</code></pre>
+          );
+        } catch {
+          return <pre className="text-sm font-mono bg-muted/50 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap">{textContent}</pre>;
+        }
+
+      case "csv": {
+        const { headers, rows } = parseCSV(textContent ?? "");
+        return (
+          <div className="overflow-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/70 sticky top-0 z-10">
+                <tr>{headers.map((h, i) => <th key={i} className="px-4 py-2.5 text-left font-semibold text-xs uppercase tracking-wider border-b whitespace-nowrap">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i} className={i % 2 === 0 ? "bg-transparent" : "bg-muted/20"}>
+                    {row.map((cell, j) => <td key={j} className="px-4 py-2 border-b border-border/30 whitespace-nowrap">{cell}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-4 py-2 text-xs text-muted-foreground border-t bg-muted/30">
+              {rows.length} row{rows.length !== 1 ? "s" : ""} × {headers.length} column{headers.length !== 1 ? "s" : ""}
+            </div>
+          </div>
+        );
+      }
+
+      case "code":
+        return (
+          <pre className="rounded-lg overflow-hidden">
+            <code className={`hljs language-${LANG_MAP[ext(fileInfo.name)] ?? "plaintext"} block p-4 overflow-x-auto text-sm`}>
+              {textContent}
+            </code>
+          </pre>
+        );
+
+      case "html":
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Globe className="h-3 w-3" /> HTML Preview (sandboxed)
+            </div>
+            <iframe
+              srcDoc={textContent ?? ""}
+              sandbox="allow-same-origin"
+              className="w-full min-h-[600px] rounded-lg border bg-white"
+              title="HTML Preview"
+            />
+          </div>
+        );
+
+      case "docx":
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <FileText className="h-3 w-3" /> Converted from DOCX
+            </div>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none p-4 rounded-lg border bg-card"
+              dangerouslySetInnerHTML={{ __html: textContent ?? "" }}
+            />
+          </div>
+        );
+
+      case "pdf":
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <FileText className="h-3 w-3" /> PDF Document
+              <a href={previewUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="ml-auto text-primary hover:underline flex items-center gap-1">
+                Open in new tab <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <iframe
+              src={previewUrl ?? ""}
+              className="w-full min-h-[700px] rounded-lg border"
+              title="PDF Preview"
+            />
+          </div>
+        );
+
+      case "image":
+        return (
+          <div className="flex flex-col items-center justify-center py-8 gap-4">
+            <img
+              src={previewUrl ?? ""}
+              alt={fileInfo.name}
+              className="max-w-full max-h-[70vh] rounded-lg shadow-lg object-contain"
+            />
+            <p className="text-xs text-muted-foreground">
+              {fileInfo.name} — {formatSize(fileInfo.size)}
+            </p>
+          </div>
+        );
+
+      case "audio":
+        return (
+          <div className="flex flex-col items-center justify-center py-16 gap-6">
+            <div className="h-24 w-24 rounded-2xl bg-fuchsia-500/10 flex items-center justify-center">
+              <Music className="h-12 w-12 text-fuchsia-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium">{fileInfo.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatSize(fileInfo.size)}</p>
+            </div>
+            <audio controls src={previewUrl ?? ""} className="w-full max-w-lg" />
+          </div>
+        );
+
+      case "video":
+        return (
+          <div className="flex flex-col items-center justify-center py-4 gap-3">
+            <video
+              controls
+              src={previewUrl ?? ""}
+              className="max-w-full max-h-[70vh] rounded-lg shadow-lg"
+            />
+            <p className="text-xs text-muted-foreground">
+              {fileInfo.name} — {formatSize(fileInfo.size)}
+            </p>
+          </div>
+        );
+
+      case "unsupported":
+      default: {
+        const fileExt = ext(fileInfo.name).toUpperCase() || "FILE";
+        const VIcon = getViewerIcon(viewerType ?? "unsupported");
+        return (
+          <div className="flex flex-col items-center justify-center py-16 gap-5">
+            <div className="relative">
+              <div className="h-24 w-24 rounded-2xl bg-muted flex items-center justify-center">
+                <VIcon className="h-12 w-12 text-muted-foreground/60" />
+              </div>
+              <Badge className="absolute -bottom-2 -right-2 text-[10px] px-1.5">{fileExt}</Badge>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium">{fileInfo.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatSize(fileInfo.size)}</p>
+              <p className="text-xs text-muted-foreground mt-3">Preview not available for this file type</p>
+            </div>
+            <a href={dl} download className="mt-2">
+              <Button className="gap-2">
+                <Download className="h-4 w-4" />
+                Download File
+              </Button>
+            </a>
+          </div>
+        );
+      }
+    }
+  }
 
   // ─── Render ──────────────────────────────────────────────────────────
 
@@ -311,19 +542,14 @@ export default function FilesPage() {
           Files
         </h1>
         <div className="flex items-center gap-2">
-          {stats.files > 0 && (
+          {(stats.files > 0 || stats.dirs > 0) && (
             <Badge variant="secondary" className="text-xs gap-1">
               <HardDrive className="h-3 w-3" />
               {stats.files} file{stats.files !== 1 ? "s" : ""}
               {stats.dirs > 0 && `, ${stats.dirs} folder${stats.dirs !== 1 ? "s" : ""}`}
             </Badge>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0"
-            onClick={() => fetchDir(currentPath)}
-          >
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => fetchDir(currentPath)}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -337,9 +563,7 @@ export default function FilesPage() {
               onClick={navigateHome}
               className={cn(
                 "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors shrink-0",
-                currentPath === ""
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                currentPath === "" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
               <Home className="h-3 w-3" />
@@ -352,9 +576,7 @@ export default function FilesPage() {
                   onClick={() => navigateToSegment(i)}
                   className={cn(
                     "px-2 py-1 rounded-md text-xs font-medium transition-colors",
-                    i === pathSegments.length - 1
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    i === pathSegments.length - 1 ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )}
                 >
                   {seg}
@@ -369,14 +591,24 @@ export default function FilesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 min-h-[500px]">
         {/* ── Left: Directory Listing ──────────────────────────────────── */}
         <Card className="flex flex-col overflow-hidden">
+          {/* Search filter */}
+          {entries.length > 5 && (
+            <div className="p-2 border-b">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Filter files…"
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+            </div>
+          )}
           <ScrollArea className="flex-1">
             <div className="p-1">
-              {/* Parent directory link */}
               {currentPath && (
-                <button
-                  onClick={navigateUp}
-                  className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted group"
-                >
+                <button onClick={navigateUp} className="flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-muted group">
                   <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover:bg-primary/10">
                     <ArrowLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
                   </div>
@@ -384,13 +616,12 @@ export default function FilesPage() {
                 </button>
               )}
 
-              {/* Entries */}
-              {entries.map((entry) => {
+              {filteredEntries.map((entry) => {
                 const Icon = getFileIcon(entry.name, entry.type);
-                const isSelected =
-                  selectedFile ===
-                  (currentPath ? `${currentPath}/${entry.name}` : entry.name);
-                const isClickable = entry.type === "directory" || entry.isText;
+                const isSelected = selectedFile === (currentPath ? `${currentPath}/${entry.name}` : entry.name);
+                const badge = entry.type === "file" ? (EXT_BADGES[ext(entry.name)] ?? { label: ext(entry.name).toUpperCase(), color: "bg-muted text-muted-foreground" }) : null;
+                const vType = entry.type === "file" ? getViewerType(entry.name) : null;
+                const isClickable = entry.type === "directory" || (vType && vType !== "unsupported") || entry.isText;
 
                 return (
                   <button
@@ -399,62 +630,37 @@ export default function FilesPage() {
                     disabled={!isClickable}
                     className={cn(
                       "flex items-center gap-3 w-full rounded-lg px-3 py-2.5 text-sm transition-all group text-left",
-                      isSelected
-                        ? "bg-primary/10 text-primary"
-                        : isClickable
-                          ? "hover:bg-muted"
-                          : "opacity-50 cursor-not-allowed",
+                      isSelected ? "bg-primary/10 text-primary" : isClickable ? "hover:bg-muted" : "opacity-50 cursor-not-allowed",
                     )}
                   >
-                    <div
-                      className={cn(
-                        "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                        isSelected
-                          ? "bg-primary/20"
-                          : entry.type === "directory"
-                            ? "bg-blue-500/10 group-hover:bg-blue-500/20"
-                            : "bg-muted group-hover:bg-muted/80",
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "h-4 w-4",
-                          isSelected
-                            ? "text-primary"
-                            : entry.type === "directory"
-                              ? "text-blue-500"
-                              : "text-muted-foreground",
-                        )}
-                      />
+                    <div className={cn(
+                      "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                      isSelected ? "bg-primary/20" : entry.type === "directory" ? "bg-blue-500/10 group-hover:bg-blue-500/20" : "bg-muted group-hover:bg-muted/80",
+                    )}>
+                      <Icon className={cn("h-4 w-4", isSelected ? "text-primary" : entry.type === "directory" ? "text-blue-500" : "text-muted-foreground")} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate font-medium text-xs">{entry.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-medium text-xs">{entry.name}</p>
+                        {badge && <span className={cn("text-[9px] font-semibold px-1 py-0.5 rounded", badge.color)}>{badge.label}</span>}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        {entry.size !== null && (
-                          <span className="text-[10px] text-muted-foreground">
-                            {formatSize(entry.size)}
-                          </span>
-                        )}
+                        {entry.size !== null && <span className="text-[10px] text-muted-foreground">{formatSize(entry.size)}</span>}
                         <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                          <Clock className="h-2.5 w-2.5" />
-                          {formatDate(entry.modified)}
+                          <Clock className="h-2.5 w-2.5" />{formatDate(entry.modified)}
                         </span>
                       </div>
                     </div>
-                    {entry.type === "directory" && (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                    )}
+                    {entry.type === "directory" && <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0" />}
                   </button>
                 );
               })}
 
-              {entries.length === 0 && (
-                <EmptyState
-                  icon={FolderOpen}
-                  title="Empty directory"
-                  description="No files here yet. Agent outputs will appear as they're created."
-                  compact
-                />
+              {filteredEntries.length === 0 && !searchFilter && (
+                <EmptyState icon={FolderOpen} title="Empty directory" description="No files here yet. Agent outputs will appear as they're created." compact />
+              )}
+              {filteredEntries.length === 0 && searchFilter && (
+                <EmptyState icon={Search} title="No matches" description={`No files matching "${searchFilter}"`} compact />
               )}
             </div>
           </ScrollArea>
@@ -464,11 +670,7 @@ export default function FilesPage() {
         <Card className="flex flex-col overflow-hidden">
           {!selectedFile && !fileLoading && (
             <div className="flex-1 flex items-center justify-center">
-              <EmptyState
-                icon={FileText}
-                title="No file selected"
-                description="Select a file from the directory listing to preview its contents."
-              />
+              <EmptyState icon={FileText} title="No file selected" description="Select a file from the directory listing to preview its contents." />
             </div>
           )}
 
@@ -476,161 +678,50 @@ export default function FilesPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <RefreshCw className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Loading file…</span>
+                <span className="text-sm">Loading…</span>
               </div>
             </div>
           )}
 
-          {fileError && (
+          {fileError && !fileLoading && (
             <div className="flex-1 flex items-center justify-center">
-              <ErrorState
-                message={fileError}
-                onRetry={() => selectedFile && fetchFile(selectedFile)}
-              />
+              <ErrorState message={fileError} onRetry={() => selectedFile && selectFile(selectedFile)} />
             </div>
           )}
 
-          {fileContent && !fileLoading && !fileError && (
+          {!fileLoading && !fileError && fileInfo && viewerType && (
             <>
               {/* File header */}
               <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
                 <div className="flex items-center gap-2 min-w-0">
+                  {(() => { const I = getFileIcon(fileInfo.name, "file"); return <I className="h-4 w-4 text-muted-foreground shrink-0" />; })()}
+                  <span className="text-sm font-medium truncate">{fileInfo.name}</span>
                   {(() => {
-                    const Icon = getFileIcon(fileContent.name, "file");
-                    return <Icon className="h-4 w-4 text-muted-foreground shrink-0" />;
+                    const b = EXT_BADGES[ext(fileInfo.name)];
+                    return b ? <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0", b.color)}>{b.label}</span> : null;
                   })()}
-                  <span className="text-sm font-medium truncate">{fileContent.name}</span>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                    {formatSize(fileContent.size)}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
-                    {formatDate(fileContent.modified)}
-                  </span>
+                  <Badge variant="secondary" className="text-[10px] shrink-0">{formatSize(fileInfo.size)}</Badge>
+                  <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{formatDate(fileInfo.modified)}</span>
                 </div>
                 {downloadUrl && (
-                  <a
-                    href={downloadUrl}
-                    download
-                    className="inline-flex"
-                  >
+                  <a href={downloadUrl} download className="inline-flex shrink-0">
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                      <Download className="h-3 w-3" />
-                      Download
+                      <Download className="h-3 w-3" /> Download
                     </Button>
                   </a>
                 )}
               </div>
 
-              {/* File content */}
+              {/* Content */}
               <ScrollArea className="flex-1">
                 <div className="p-4 lg:p-6">
-                  {renderedContent?.type === "markdown" ? (
-                    <article
-                      className="mk-article"
-                      dangerouslySetInnerHTML={{ __html: renderedContent.html }}
-                    />
-                  ) : (
-                    <pre className="text-sm font-mono bg-muted/50 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words leading-relaxed">
-                      <code>{renderedContent?.code}</code>
-                    </pre>
-                  )}
+                  {renderViewer()}
                 </div>
               </ScrollArea>
             </>
           )}
         </Card>
       </div>
-
-      {/* Markdown styles */}
-      <style jsx global>{`
-        .mk-article {
-          line-height: 1.75;
-          color: var(--foreground);
-        }
-        .mk-h1 {
-          font-size: 1.75rem;
-          font-weight: 700;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          line-height: 1.25;
-          letter-spacing: -0.02em;
-        }
-        .mk-h2 {
-          font-size: 1.35rem;
-          font-weight: 600;
-          margin-top: 1.5rem;
-          margin-bottom: 0.5rem;
-          line-height: 1.3;
-          padding-bottom: 0.4rem;
-          border-bottom: 1px solid hsl(var(--border));
-        }
-        .mk-h3 {
-          font-size: 1.1rem;
-          font-weight: 600;
-          margin-top: 1.25rem;
-          margin-bottom: 0.4rem;
-          line-height: 1.4;
-        }
-        .mk-h4 {
-          font-size: 1rem;
-          font-weight: 600;
-          margin-top: 1rem;
-          margin-bottom: 0.25rem;
-        }
-        .mk-p {
-          margin-bottom: 0.75rem;
-        }
-        .mk-hr {
-          border: none;
-          border-top: 1px solid hsl(var(--border));
-          margin: 1.5rem 0;
-        }
-        .mk-link {
-          color: hsl(var(--primary));
-          text-decoration: underline;
-          text-underline-offset: 2px;
-        }
-        .mk-link:hover {
-          opacity: 0.8;
-        }
-        .mk-ul, .mk-ol {
-          padding-left: 1.5rem;
-          margin-bottom: 0.75rem;
-        }
-        .mk-ul { list-style-type: disc; }
-        .mk-ol { list-style-type: decimal; }
-        .mk-li, .mk-oli {
-          margin-bottom: 0.25rem;
-          line-height: 1.6;
-        }
-        .mk-pre {
-          background: hsl(var(--muted));
-          border-radius: 0.5rem;
-          padding: 1rem;
-          margin: 1rem 0;
-          overflow-x: auto;
-        }
-        .mk-code {
-          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-          font-size: 0.8rem;
-          line-height: 1.6;
-          white-space: pre;
-        }
-        .mk-inline-code {
-          font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-          font-size: 0.85em;
-          background: hsl(var(--muted));
-          padding: 0.15rem 0.4rem;
-          border-radius: 0.25rem;
-        }
-        .mk-bq {
-          border-left: 3px solid hsl(var(--primary));
-          padding-left: 1rem;
-          margin: 1rem 0;
-          color: hsl(var(--muted-foreground));
-          font-style: italic;
-        }
-      `}</style>
     </div>
   );
 }

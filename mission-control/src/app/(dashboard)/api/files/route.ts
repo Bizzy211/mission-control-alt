@@ -79,10 +79,40 @@ export async function GET(request: Request) {
         });
       }
 
-      // Safety cap: 1 MB
-      if (info.size > 1_048_576) {
+      // DOCX conversion via mammoth
+      const ext = path.extname(resolved).toLowerCase();
+      if (ext === ".docx") {
+        if (info.size > 10_485_760) {
+          return NextResponse.json(
+            { error: "DOCX too large to convert (>10MB)" },
+            { status: 413 },
+          );
+        }
+        try {
+          const buffer = await readFile(resolved);
+          const mammoth = await import("mammoth");
+          const result = await mammoth.convertToHtml({ buffer });
+          return NextResponse.json({
+            type: "file",
+            name: path.basename(resolved),
+            content: result.value,
+            mime: "text/html",
+            convertedFrom: "docx",
+            size: info.size,
+            modified: info.mtime.toISOString(),
+          });
+        } catch {
+          return NextResponse.json(
+            { error: "Failed to convert DOCX" },
+            { status: 500 },
+          );
+        }
+      }
+
+      // Safety cap: 2 MB for text files
+      if (info.size > 2_097_152) {
         return NextResponse.json(
-          { error: "File too large to preview (>1MB). Use the download endpoint instead." },
+          { error: "File too large to preview (>2MB). Use the download endpoint instead." },
           { status: 413 },
         );
       }
