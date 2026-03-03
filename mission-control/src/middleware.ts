@@ -28,8 +28,11 @@ function timingSafeEqual(a: string, b: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // --- Auth API proxy: always pass through ---
+  // --- Auth API proxy: pass through (except signup, which is disabled) ---
   if (pathname.startsWith("/api/auth/") || pathname === "/api/auth") {
+    if (pathname.startsWith("/api/auth/sign-up")) {
+      return NextResponse.json({ error: "Registration disabled" }, { status: 403 });
+    }
     return NextResponse.next();
   }
 

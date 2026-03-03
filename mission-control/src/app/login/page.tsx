@@ -8,7 +8,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -16,28 +15,23 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const endpoint = isSignUp
-      ? "/api/auth/sign-up/email"
-      : "/api/auth/sign-in/email";
-
     try {
-      const res = await fetch(endpoint, {
+      const res = await fetch("/api/auth/sign-in/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name: email.split("@")[0] }),
+        body: JSON.stringify({ email, password }),
         credentials: "include",
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `Authentication failed (${res.status})`);
+        setError("Invalid credentials");
         return;
       }
 
       router.push("/");
       router.refresh();
     } catch {
-      setError("Unable to reach auth service");
+      setError("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -47,12 +41,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 rounded-xl border bg-card p-8">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Mission Control
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isSignUp ? "Create an account" : "Sign in to continue"}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Sign in</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,7 +60,6 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="you@example.com"
             />
           </div>
 
@@ -86,12 +74,10 @@ export default function LoginPage() {
               id="password"
               type="password"
               required
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              minLength={8}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="••••••••"
             />
           </div>
 
@@ -104,27 +90,9 @@ export default function LoginPage() {
             disabled={loading}
             className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
-            {loading
-              ? "Please wait..."
-              : isSignUp
-                ? "Create account"
-                : "Sign in"}
+            {loading ? "Please wait..." : "Sign in"}
           </button>
         </form>
-
-        <p className="text-center text-sm text-muted-foreground">
-          {isSignUp ? "Already have an account?" : "Need an account?"}{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError("");
-            }}
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            {isSignUp ? "Sign in" : "Sign up"}
-          </button>
-        </p>
       </div>
     </div>
   );
