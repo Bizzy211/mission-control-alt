@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mutateSkillsLibrary } from "@/lib/data";
+import { getAgents, mutateAgents, mutateSkillsLibrary } from "@/lib/data";
 import type { SkillDefinition } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +27,18 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const id = `skill_store_${body.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 60)}_${Date.now()}`;
 
+  // Auto-assign to all active non-"me" agents
+  const agentsData = await getAgents();
+  const allAgentIds = agentsData.agents
+    .filter((a) => a.id !== "me" && a.status === "active")
+    .map((a) => a.id);
+
   const newSkill: SkillDefinition = {
     id,
     name: body.name,
     description: body.description || "",
     content: body.content || `# ${body.name}\n\nInstalled from Skill Store.\nSource: ${body.source || "SkillsMP"}`,
-    agentIds: [],
+    agentIds: allAgentIds,
     tags: [...(body.tags || []), "skill-store"],
     createdAt: now,
     updatedAt: now,
@@ -55,6 +61,16 @@ export async function POST(request: Request) {
       { status: 409 },
     );
   }
+
+  // Side effect: add new skill to all agents' skillIds
+  await mutateAgents(async (data) => {
+    for (const agent of data.agents) {
+      if (agent.id !== "me" && !agent.skillIds.includes(id)) {
+        agent.skillIds.push(id);
+        agent.updatedAt = now;
+      }
+    }
+  });
 
   return NextResponse.json(result, { status: 201 });
 }

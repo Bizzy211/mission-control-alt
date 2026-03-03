@@ -32,6 +32,8 @@
       ],
       "skillIds": [
         "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -53,6 +55,8 @@
         "architecture"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
         "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
@@ -75,6 +79,9 @@
         "positioning"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -95,7 +102,9 @@
         "strategic-planning"
       ],
       "skillIds": [
+        "skill_demo_research",
         "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -118,6 +127,9 @@
         "improvement-suggestions"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -141,6 +153,9 @@
         "state-management"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -164,6 +179,9 @@
         "sql-nosql"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -187,6 +205,9 @@
         "color-theory"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -210,6 +231,9 @@
         "container-orchestration"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -233,6 +257,9 @@
         "token-optimization"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -256,6 +283,9 @@
         "data-indexing"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -279,6 +309,9 @@
         "mlops"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -302,6 +335,9 @@
         "bid-no-bid-analysis"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -325,6 +361,9 @@
         "penetration-testing"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -348,6 +387,9 @@
         "changelog-management"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",
@@ -371,6 +413,9 @@
         "data-pipelines"
       ],
       "skillIds": [
+        "skill_demo_research",
+        "skill_demo_eisenhower",
+        "skill_demo_task_mgmt",
         "skill_visual_explainer"
       ],
       "status": "active",

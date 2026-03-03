@@ -44,6 +44,18 @@ export async function POST(request: Request) {
   if (!validation.success) return validation.error;
   const body = validation.data;
 
+  // Auto-assign default core skills to new agents (unless explicit skillIds provided)
+  const DEFAULT_SKILL_IDS = [
+    "skill_demo_research",
+    "skill_demo_eisenhower",
+    "skill_demo_task_mgmt",
+    "skill_visual_explainer",
+  ];
+  let skillIds = body.skillIds;
+  if (!skillIds || skillIds.length === 0) {
+    skillIds = DEFAULT_SKILL_IDS;
+  }
+
   const newAgent = await mutateAgents(async (data) => {
     // Check for duplicate ID
     if (data.agents.some((a) => a.id === body.id)) {
@@ -58,7 +70,7 @@ export async function POST(request: Request) {
       description: body.description,
       instructions: body.instructions,
       capabilities: body.capabilities,
-      skillIds: body.skillIds,
+      skillIds,
       status: body.status,
       createdAt: now,
       updatedAt: now,
@@ -66,6 +78,18 @@ export async function POST(request: Request) {
     data.agents.push(agent);
     return agent;
   });
+
+  // Side effect: add new agent to all skills' agentIds
+  if (newAgent && newAgent.id !== "me") {
+    await mutateSkillsLibrary(async (data) => {
+      for (const skill of data.skills) {
+        if (!skill.agentIds.includes(newAgent.id)) {
+          skill.agentIds.push(newAgent.id);
+          skill.updatedAt = new Date().toISOString();
+        }
+      }
+    });
+  }
 
   if (!newAgent) {
     return NextResponse.json({ error: `Agent with id "${body.id}" already exists` }, { status: 409 });
