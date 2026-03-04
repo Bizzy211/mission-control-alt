@@ -7,9 +7,37 @@ export const dynamic = "force-dynamic";
 interface InstallBody {
   name: string;
   description: string;
-  content: string;
+  content?: string;
   source: string;
+  githubUrl?: string;
   tags: string[];
+}
+
+/**
+ * Attempt to fetch SKILL.md from a GitHub repo.
+ * Tries main then master branch.
+ */
+async function fetchSkillMd(githubUrl: string): Promise<string | null> {
+  // Extract owner/repo from https://github.com/owner/repo
+  const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (!match) return null;
+
+  const [, owner, repo] = match;
+  const cleanRepo = repo.replace(/\.git$/, "");
+
+  for (const branch of ["main", "master"]) {
+    try {
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${cleanRepo}/${branch}/SKILL.md`;
+      const res = await fetch(rawUrl, { signal: AbortSignal.timeout(10_000) });
+      if (res.ok) {
+        const text = await res.text();
+        if (text.trim().length > 0) return text;
+      }
+    } catch {
+      // Try next branch
+    }
+  }
+  return null;
 }
 
 export async function POST(request: Request) {
@@ -27,6 +55,16 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const id = `skill_store_${body.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 60)}_${Date.now()}`;
 
+  // Try to fetch actual SKILL.md content from GitHub
+  let content = body.content || "";
+  if (!content && body.githubUrl) {
+    const fetched = await fetchSkillMd(body.githubUrl);
+    if (fetched) content = fetched;
+  }
+  if (!content) {
+    content = `# ${body.name}\n\nInstalled from Skill Store.\nSource: ${body.source || body.githubUrl || "SkillsMP"}`;
+  }
+
   // Auto-assign to all active non-"me" agents
   const agentsData = await getAgents();
   const allAgentIds = agentsData.agents
@@ -37,7 +75,7 @@ export async function POST(request: Request) {
     id,
     name: body.name,
     description: body.description || "",
-    content: body.content || `# ${body.name}\n\nInstalled from Skill Store.\nSource: ${body.source || "SkillsMP"}`,
+    content,
     agentIds: allAgentIds,
     tags: [...(body.tags || []), "skill-store"],
     createdAt: now,

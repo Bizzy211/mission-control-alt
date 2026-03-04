@@ -174,7 +174,7 @@ function SkillStoreTab({ installedNames, onInstalled }: { installedNames: Set<st
         body: JSON.stringify({
           name: skill.name,
           description: skill.description,
-          content: `# ${skill.name}\n\nInstalled from Skill Store.\nAuthor: ${skill.author}\nSource: ${skill.githubUrl || skill.skillUrl || "SkillsMP"}`,
+          githubUrl: skill.githubUrl || "",
           source: skill.githubUrl || skill.skillUrl || "",
           tags: [skill.author],
         }),
