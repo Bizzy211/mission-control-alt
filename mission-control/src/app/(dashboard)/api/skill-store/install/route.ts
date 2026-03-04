@@ -14,15 +14,36 @@ interface InstallBody {
 }
 
 /**
- * Attempt to fetch SKILL.md from a GitHub repo.
- * Tries main then master branch.
+ * Attempt to fetch SKILL.md from a GitHub URL.
+ * Handles both repo-root URLs (github.com/owner/repo) and
+ * subdirectory URLs (github.com/owner/repo/tree/branch/path/to/skill).
  */
 async function fetchSkillMd(githubUrl: string): Promise<string | null> {
-  // Extract owner/repo from https://github.com/owner/repo
-  const match = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (!match) return null;
+  // Case 1: URL with /tree/branch/path — e.g. github.com/owner/repo/tree/main/.agents/skills/foo
+  const treeMatch = githubUrl.match(
+    /github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)/,
+  );
+  if (treeMatch) {
+    const [, owner, repo, branch, subPath] = treeMatch;
+    const cleanRepo = repo.replace(/\.git$/, "");
+    const cleanPath = subPath.replace(/\/$/, "");
+    try {
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${cleanRepo}/${branch}/${cleanPath}/SKILL.md`;
+      const res = await fetch(rawUrl, { signal: AbortSignal.timeout(10_000) });
+      if (res.ok) {
+        const text = await res.text();
+        if (text.trim().length > 0) return text;
+      }
+    } catch {
+      // Fall through to repo-root approach
+    }
+  }
 
-  const [, owner, repo] = match;
+  // Case 2: Repo-root URL — try main then master
+  const repoMatch = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (!repoMatch) return null;
+
+  const [, owner, repo] = repoMatch;
   const cleanRepo = repo.replace(/\.git$/, "");
 
   for (const branch of ["main", "master"]) {
