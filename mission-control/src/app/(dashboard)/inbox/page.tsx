@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { SpeakButton } from "@/components/speak-button";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -498,9 +499,12 @@ export default function InboxPage() {
                               <Badge className={`text-[10px] h-4 px-1 ${typeColors[msg.type]}`}>{msg.type}</Badge>
                               <span className="text-xs text-muted-foreground ml-auto">{formatDate(msg.createdAt)}</span>
                             </div>
-                            <p className="text-sm whitespace-pre-wrap text-foreground/90 pl-5">
-                              {msg.body || "(no content)"}
-                            </p>
+                            <div className="flex items-start gap-1 pl-5">
+                              <p className="text-sm whitespace-pre-wrap text-foreground/90 flex-1">
+                                {msg.body || "(no content)"}
+                              </p>
+                              {msg.body && <SpeakButton text={msg.body} />}
+                            </div>
                           </div>
                         );
                       })}

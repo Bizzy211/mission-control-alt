@@ -57,10 +57,10 @@ export async function POST(
     );
   }
 
-  // 3. Validate task is not done
-  if (task.kanban === "done") {
+  // 3. Validate task is not done or in review
+  if (task.kanban === "done" || task.kanban === "review") {
     return NextResponse.json(
-      { error: "Task is already done" },
+      { error: `Task is already ${task.kanban}` },
       { status: 400 }
     );
   }

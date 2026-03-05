@@ -99,7 +99,7 @@ export default function CommandCenterPage() {
     pendingDecisions.filter((d) => d.taskId).map((d) => d.taskId as string)
   );
   const agentWorkload = AGENT_ROLES.filter((r) => r.id !== "me").map((role) => {
-    const agentTasks = tasks.filter((t) => t.assignedTo === role.id && t.kanban !== "done");
+    const agentTasks = tasks.filter((t) => t.assignedTo === role.id && t.kanban !== "done" && t.kanban !== "review");
     const inProgress = agentTasks.filter((t) => t.kanban === "in-progress");
     const withDeps = agentTasks.filter((t) => {
       if (!t.blockedBy || t.blockedBy.length === 0) return false;

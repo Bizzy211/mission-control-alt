@@ -53,6 +53,7 @@
   /* Status colors — light mode */
   --status-not-started: oklch(0.50 0 0);
   --status-in-progress: oklch(0.50 0.22 265);
+  --status-review: oklch(0.55 0.18 80);
   --status-done: oklch(0.50 0.20 155);
 
   /* Success / Warning / Info — light mode */
@@ -117,6 +118,7 @@
   /* Status colors */
   --status-not-started: oklch(0.45 0 0);
   --status-in-progress: oklch(0.6 0.18 265);
+  --status-review: oklch(0.7 0.18 80);
   --status-done: oklch(0.6 0.17 155);
 
   /* Success / Warning / Info */
@@ -165,6 +167,7 @@
   --color-quadrant-eliminate: var(--quadrant-eliminate);
   --color-status-not-started: var(--status-not-started);
   --color-status-in-progress: var(--status-in-progress);
+  --color-status-review: var(--status-review);
   --color-status-done: var(--status-done);
   --color-success: var(--success);
   --color-warning: var(--warning);

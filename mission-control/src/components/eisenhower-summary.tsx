@@ -17,7 +17,7 @@ const quadrants = [
 ];
 
 export function EisenhowerSummary({ tasks }: EisenhowerSummaryProps) {
-  const activeTasks = tasks.filter((t) => t.kanban !== "done");
+  const activeTasks = tasks.filter((t) => t.kanban !== "done" && t.kanban !== "review");
   const grouped: Record<string, Task[]> = { do: [], schedule: [], delegate: [], eliminate: [] };
   activeTasks.forEach((t) => {
     grouped[getQuadrant(t)].push(t);

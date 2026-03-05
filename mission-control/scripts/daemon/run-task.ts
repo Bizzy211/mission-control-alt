@@ -197,17 +197,17 @@ function handleTaskCompletion(taskId: string, agentId: string, stdout: string): 
   const now = new Date().toISOString();
   const summary = extractSummary(stdout);
 
-  // 1. Mark task as "done" (idempotent — only if not already done)
+  // 1. Mark task as "review" (agent finished — user must review before "done")
   try {
     const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
     const tasksData = JSON.parse(tasksRaw) as { tasks: Array<Record<string, unknown>> };
     const task = tasksData.tasks.find((t) => t.id === taskId);
-    if (task && task.kanban !== "done") {
-      task.kanban = "done";
+    if (task && task.kanban !== "done" && task.kanban !== "review") {
+      task.kanban = "review";
       task.completedAt = now;
       task.updatedAt = now;
       writeFileSync(TASKS_FILE, JSON.stringify(tasksData, null, 2), "utf-8");
-      logger.info("run-task", `Marked task ${taskId} as done`);
+      logger.info("run-task", `Marked task ${taskId} as review (awaiting user review)`);
     }
   } catch (err) {
     logger.error("run-task", `Failed to mark task ${taskId} as done: ${err instanceof Error ? err.message : String(err)}`);
@@ -694,6 +694,7 @@ function handleMissionContinuation(
   const remaining = projectTasks.filter(
     (t) =>
       t.kanban !== "done" &&
+      t.kanban !== "review" &&
       t.assignedTo &&
       t.assignedTo !== "me" &&
       !t.deletedAt
@@ -873,9 +874,9 @@ async function main() {
     process.exit(1);
   }
 
-  // 3. Validate task is not already done
-  if (task.kanban === "done") {
-    logger.error("run-task", `Task ${taskId} is already done`);
+  // 3. Validate task is not already done or in review
+  if (task.kanban === "done" || task.kanban === "review") {
+    logger.error("run-task", `Task ${taskId} is already ${task.kanban}`);
     process.exit(1);
   }
 
@@ -968,7 +969,7 @@ async function main() {
       const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
       const tasksData = JSON.parse(tasksRaw) as { tasks: Array<Record<string, unknown>> };
       const taskToUpdate = tasksData.tasks.find((t) => t.id === taskId);
-      if (taskToUpdate && taskToUpdate.kanban !== "in-progress" && taskToUpdate.kanban !== "done") {
+      if (taskToUpdate && taskToUpdate.kanban !== "in-progress" && taskToUpdate.kanban !== "done" && taskToUpdate.kanban !== "review") {
         taskToUpdate.kanban = "in-progress";
         taskToUpdate.updatedAt = new Date().toISOString();
         writeFileSync(TASKS_FILE, JSON.stringify(tasksData, null, 2), "utf-8");

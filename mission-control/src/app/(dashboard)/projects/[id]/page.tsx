@@ -113,7 +113,7 @@ export default function ProjectDetailPage() {
   eActive.forEach((t) => { eGrouped[getQuadrant(t)].push(t); });
 
   // Kanban groups
-  const kGrouped: Record<KanbanStatus, Task[]> = { "not-started": [], "in-progress": [], done: [] };
+  const kGrouped: Record<KanbanStatus, Task[]> = { "not-started": [], "in-progress": [], review: [], done: [] };
   projectTasks.forEach((t) => { kGrouped[t.kanban].push(t); });
 
   const progress = projectTasks.length > 0
@@ -295,9 +295,10 @@ export default function ProjectDetailPage() {
 
         <TabsContent value="status-board">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleKanbanDragEnd}>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <DroppableZone id="not-started" label="Not Started" dotColor="bg-status-not-started" tasks={kGrouped["not-started"]} onTaskClick={setSelectedTask} isTaskRunning={isTaskRunning} onRunTask={runTask} pendingDecisionTaskIds={pendingDecisionTaskIds} />
               <DroppableZone id="in-progress" label="In Progress" dotColor="bg-status-in-progress" tasks={kGrouped["in-progress"]} onTaskClick={setSelectedTask} isTaskRunning={isTaskRunning} onRunTask={runTask} pendingDecisionTaskIds={pendingDecisionTaskIds} />
+              <DroppableZone id="review" label="Needs Review" dotColor="bg-status-review" tasks={kGrouped.review} onTaskClick={setSelectedTask} isTaskRunning={isTaskRunning} onRunTask={runTask} pendingDecisionTaskIds={pendingDecisionTaskIds} />
               <DroppableZone id="done" label="Done" dotColor="bg-status-done" tasks={kGrouped.done} onTaskClick={setSelectedTask} isTaskRunning={isTaskRunning} onRunTask={runTask} pendingDecisionTaskIds={pendingDecisionTaskIds} />
             </div>
             <DragOverlay>{activeTask ? <TaskCard task={activeTask} className="shadow-xl" /> : null}</DragOverlay>

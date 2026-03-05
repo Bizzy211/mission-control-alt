@@ -26,6 +26,7 @@ import { useActivityLog, useInbox, useAgents, useDecisions } from "@/hooks/use-d
 import { getAgentIcon } from "@/lib/agent-icons";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Tip } from "@/components/ui/tip";
+import { SpeakButton } from "@/components/speak-button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -253,6 +254,7 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <SpeakButton text={`${task.title}. ${task.description}`} />
             {/* Deploy button */}
             <DropdownMenu>
               <Tip content="Deploy to agent">

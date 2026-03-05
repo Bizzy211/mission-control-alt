@@ -32,6 +32,7 @@ import {
   Flag,
   Plug,
   CalendarClock,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -62,6 +63,7 @@ const commsLinks = [
   { href: "/brain-dump", label: "Brain Dump", icon: Lightbulb, badgeKey: null },
   { href: "/files", label: "Deliverables", icon: FolderOpen, badgeKey: null },
   { href: "/mcp-servers", label: "MCP Servers", icon: Plug, badgeKey: null },
+  { href: "/settings", label: "Settings", icon: Settings, badgeKey: null },
 ];
 
 // Dynamic icon lookup by name

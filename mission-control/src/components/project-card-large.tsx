@@ -33,13 +33,14 @@ export function ProjectCardLarge({ project, tasks, goals, isRunning, isMissionAc
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
   const notStarted = projectTasks.filter((t) => t.kanban === "not-started").length;
   const inProgress = projectTasks.filter((t) => t.kanban === "in-progress").length;
+  const review = projectTasks.filter((t) => t.kanban === "review").length;
   const done = projectTasks.filter((t) => t.kanban === "done").length;
   const total = projectTasks.length;
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+  const progress = total > 0 ? Math.round(((done + review) / total) * 100) : 0;
 
   // Eisenhower mini counts
   const qCounts = { do: 0, schedule: 0, delegate: 0, eliminate: 0 };
-  projectTasks.filter((t) => t.kanban !== "done").forEach((t) => {
+  projectTasks.filter((t) => t.kanban !== "done" && t.kanban !== "review").forEach((t) => {
     qCounts[getQuadrant(t)]++;
   });
 
@@ -49,7 +50,7 @@ export function ProjectCardLarge({ project, tasks, goals, isRunning, isMissionAc
 
   // Check if project has tasks eligible to run (not done, has AI agent)
   const hasEligibleTasks = projectTasks.some(
-    (t) => t.kanban !== "done" && t.assignedTo && t.assignedTo !== "me"
+    (t) => t.kanban !== "done" && t.kanban !== "review" && t.assignedTo && t.assignedTo !== "me"
   );
 
   return (
@@ -150,6 +151,11 @@ export function ProjectCardLarge({ project, tasks, goals, isRunning, isMissionAc
             <span className="text-muted-foreground">
               <span className="font-medium text-status-in-progress">{inProgress}</span> active
             </span>
+            {review > 0 && (
+              <span className="text-muted-foreground">
+                <span className="font-medium text-status-review">{review}</span> review
+              </span>
+            )}
             <span className="text-muted-foreground">
               <span className="font-medium text-status-done">{done}</span> done
             </span>

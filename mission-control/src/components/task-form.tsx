@@ -258,6 +258,7 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
             <SelectContent>
               <SelectItem value="not-started">Not Started</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="review">Review</SelectItem>
               <SelectItem value="done">Done</SelectItem>
             </SelectContent>
           </Select>
@@ -610,9 +611,9 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
                     <span className="flex-1 truncate">{t.title}</span>
                     <span className={cn(
                       "text-xs shrink-0",
-                      t.kanban === "done" ? "text-status-done" : "text-muted-foreground"
+                      t.kanban === "done" ? "text-status-done" : t.kanban === "review" ? "text-status-review" : "text-muted-foreground"
                     )}>
-                      {t.kanban === "done" ? "Done" : t.kanban === "in-progress" ? "Active" : "Todo"}
+                      {t.kanban === "done" ? "Done" : t.kanban === "review" ? "Review" : t.kanban === "in-progress" ? "Active" : "Todo"}
                     </span>
                   </button>
                 );

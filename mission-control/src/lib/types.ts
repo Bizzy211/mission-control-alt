@@ -1,6 +1,6 @@
 export type Importance = "important" | "not-important";
 export type Urgency = "urgent" | "not-urgent";
-export type KanbanStatus = "not-started" | "in-progress" | "done";
+export type KanbanStatus = "not-started" | "in-progress" | "review" | "done";
 export type GoalType = "long-term" | "medium-term";
 export type GoalStatus = "not-started" | "in-progress" | "completed";
 export type ProjectStatus = "active" | "paused" | "completed" | "archived";

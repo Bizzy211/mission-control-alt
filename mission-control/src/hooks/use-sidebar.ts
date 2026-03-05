@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Task, AgentDefinition } from "@/lib/types";
 import { apiFetch } from "@/lib/api-client";
+import { useSettings } from "@/hooks/use-settings";
+import { playNewMessage } from "@/lib/notification-sounds";
 
 interface SidebarData {
   tasks: Task[];
@@ -20,6 +22,10 @@ export function useSidebar() {
   const [pendingDecisions, setPendingDecisions] = useState(0);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
+  const prevUnreadRef = useRef<number | null>(null);
+  const { settings } = useSettings();
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   const refetch = useCallback(async () => {
     try {
@@ -29,6 +35,17 @@ export function useSidebar() {
       const json: SidebarData = await res.json();
       setTasks(json.tasks);
       setAgents(json.agents);
+      // Play new-message sound if unread count increased
+      if (
+        prevUnreadRef.current !== null &&
+        json.unreadInbox > prevUnreadRef.current
+      ) {
+        const s = settingsRef.current;
+        if (s.notifications.soundEnabled && s.notifications.onNewMessage) {
+          playNewMessage(s.notifications.volume);
+        }
+      }
+      prevUnreadRef.current = json.unreadInbox;
       setUnreadInbox(json.unreadInbox);
       setPendingDecisions(json.pendingDecisions);
       initialLoadDone.current = true;

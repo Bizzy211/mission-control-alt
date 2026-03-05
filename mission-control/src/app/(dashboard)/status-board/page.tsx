@@ -32,6 +32,7 @@ import { ErrorState } from "@/components/error-state";
 const columns: ColumnConfig[] = [
   { id: "not-started", label: "Not Started", dotColor: "bg-status-not-started", borderColor: "border-status-not-started/30" },
   { id: "in-progress", label: "In Progress", dotColor: "bg-status-in-progress", borderColor: "border-status-in-progress/30" },
+  { id: "review", label: "Needs Review", dotColor: "bg-status-review", borderColor: "border-status-review/30" },
   { id: "done", label: "Done", dotColor: "bg-status-done", borderColor: "border-status-done/30" },
 ];
 
@@ -66,7 +67,7 @@ export default function KanbanPage() {
     filteredTasks = filteredTasks.filter((t) => t.projectId === filterProject);
   }
 
-  const grouped: Record<KanbanStatus, Task[]> = { "not-started": [], "in-progress": [], done: [] };
+  const grouped: Record<KanbanStatus, Task[]> = { "not-started": [], "in-progress": [], review: [], done: [] };
   for (const task of filteredTasks) {
     grouped[task.kanban].push(task);
   }
@@ -127,7 +128,7 @@ export default function KanbanPage() {
       </div>
 
       <BoardDndWrapper activeTask={activeTask} projects={projects} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {columns.map((col) => (
             <BoardColumn
               key={col.id}

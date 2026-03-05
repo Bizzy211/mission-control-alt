@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 const importanceEnum = z.enum(["important", "not-important"]);
 const urgencyEnum = z.enum(["urgent", "not-urgent"]);
-const kanbanEnum = z.enum(["not-started", "in-progress", "done"]);
+const kanbanEnum = z.enum(["not-started", "in-progress", "review", "done"]);
 const goalTypeEnum = z.enum(["long-term", "medium-term"]);
 const goalStatusEnum = z.enum(["not-started", "in-progress", "completed"]);
 const projectStatusEnum = z.enum(["active", "paused", "completed", "archived"]);

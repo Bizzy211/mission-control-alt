@@ -65,7 +65,7 @@ export default function EisenhowerPage() {
     handleDeleteTask,
   } = useTaskHandlers(tasks, updateTask, createTask, deleteTask);
 
-  let activeTasks = tasks.filter((t) => t.kanban !== "done");
+  let activeTasks = tasks.filter((t) => t.kanban !== "done" && t.kanban !== "review");
   if (filterProject !== "all") {
     activeTasks = activeTasks.filter((t) => t.projectId === filterProject);
   }

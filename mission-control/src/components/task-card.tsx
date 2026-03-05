@@ -11,12 +11,14 @@ import { RunButton } from "@/components/run-button";
 const kanbanDot: Record<KanbanStatus, string> = {
   "not-started": "bg-status-not-started",
   "in-progress": "bg-status-in-progress",
+  review: "bg-status-review",
   done: "bg-status-done",
 };
 
 const kanbanLabels: Record<KanbanStatus, string> = {
   "not-started": "Todo",
   "in-progress": "Active",
+  review: "Review",
   done: "Done",
 };
 
@@ -63,14 +65,14 @@ export function TaskCard({ task, project, agents = [], className, isDragging, on
   // Deadline check
   const dueDate = task.dueDate ? new Date(task.dueDate + "T23:59:59") : null;
   const now = new Date();
-  const isOverdue = dueDate && task.kanban !== "done" && dueDate < now;
+  const isOverdue = dueDate && task.kanban !== "done" && task.kanban !== "review" && dueDate < now;
   const daysUntilDue = dueDate ? Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
   const isDueToday = daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue < 1;
   const isDueSoon = daysUntilDue !== null && daysUntilDue >= 1 && daysUntilDue <= 3;
 
   function formatDueLabel(): string | null {
     if (!task.dueDate) return null;
-    if (task.kanban === "done") {
+    if (task.kanban === "done" || task.kanban === "review") {
       return `Due ${new Date(task.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
     }
     if (isOverdue) return `Overdue: ${new Date(task.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
@@ -105,7 +107,7 @@ export function TaskCard({ task, project, agents = [], className, isDragging, on
           </CardTitle>
           <div className="flex items-center gap-1 shrink-0">
             {/* Run button — only shown when agent assigned, not done, and handler provided */}
-            {onRun && task.assignedTo && task.assignedTo !== "me" && task.kanban !== "done" && (
+            {onRun && task.assignedTo && task.assignedTo !== "me" && task.kanban !== "done" && task.kanban !== "review" && (
               <RunButton
                 isRunning={isRunning ?? false}
                 onClick={() => onRun(task.id)}

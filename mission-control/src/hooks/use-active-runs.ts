@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ActiveRun, DecisionItem, MissionRun } from "@/lib/types";
 import { showSuccess, showError } from "@/lib/toast";
 import { apiFetch } from "@/lib/api-client";
+import { useSettings } from "@/hooks/use-settings";
+import {
+  playTaskComplete,
+  playNewMessage,
+  playDecisionNeeded,
+} from "@/lib/notification-sounds";
 
 const POLL_INTERVAL = 3000; // 3 seconds
 
@@ -14,6 +20,11 @@ export function useActiveRuns() {
   const seenRunIds = useRef<Set<string>>(new Set());
   // Skip error toasts on first fetch — existing failures are historical
   const isInitialFetch = useRef(true);
+
+  // Settings for notification sounds
+  const { settings } = useSettings();
+  const settingsRef = useRef(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   // Decision dialog state
   const [pendingDecision, setPendingDecision] = useState<DecisionItem | null>(null);
@@ -37,19 +48,27 @@ export function useActiveRuns() {
           isInitialFetch.current = false;
           seenRunIds.current = new Set(newRuns.map((r) => r.id));
         } else {
-          // Surface newly-completed runs as success toasts
+          // Surface newly-completed runs as success toasts + sounds
           for (const run of newRuns) {
             if (run.status === "completed" && !seenRunIds.current.has(run.id)) {
               showSuccess(`Task completed by ${run.agentId}`);
+              const s = settingsRef.current;
+              if (s.notifications.soundEnabled && s.notifications.onTaskComplete) {
+                playTaskComplete(s.notifications.volume);
+              }
             }
           }
-          // Surface newly-failed runs as error toasts
+          // Surface newly-failed runs as error toasts + sounds
           for (const run of newRuns) {
             if (
               (run.status === "failed" || run.status === "timeout") &&
               !seenRunIds.current.has(run.id)
             ) {
               showError(run.error ?? "Task execution failed");
+              const s = settingsRef.current;
+              if (s.notifications.soundEnabled && s.notifications.onDecisionNeeded) {
+                playDecisionNeeded(s.notifications.volume);
+              }
             }
           }
           seenRunIds.current = new Set(newRuns.map((r) => r.id));
@@ -127,6 +146,10 @@ export function useActiveRuns() {
             setPendingDecision(data.pendingDecision as DecisionItem);
             pendingTaskIdRef.current = taskId;
             setShowDecisionDialog(true);
+            const s = settingsRef.current;
+            if (s.notifications.soundEnabled && s.notifications.onDecisionNeeded) {
+              playDecisionNeeded(s.notifications.volume);
+            }
             return;
           }
 

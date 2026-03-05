@@ -150,7 +150,7 @@ export default function CrewPage() {
 
   // Count active (non-done) tasks per agent
   const taskCountByAgent = (agentId: string) =>
-    tasks.filter((t) => t.kanban !== "done" && (t.assignedTo === agentId || t.collaborators?.includes(agentId))).length;
+    tasks.filter((t) => t.kanban !== "done" && t.kanban !== "review" && (t.assignedTo === agentId || t.collaborators?.includes(agentId))).length;
 
   if (loading) {
     return (

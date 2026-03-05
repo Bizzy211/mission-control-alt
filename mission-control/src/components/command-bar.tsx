@@ -213,11 +213,11 @@ export function CommandBar({ onCapture, sidebarOpen, onToggleSidebar, isMobile =
               >
                 <div className={cn(
                   "h-2 w-2 rounded-full shrink-0",
-                  task.kanban === "done" ? "bg-status-done" : task.kanban === "in-progress" ? "bg-status-in-progress" : "bg-status-not-started"
+                  task.kanban === "done" ? "bg-status-done" : task.kanban === "review" ? "bg-status-review" : task.kanban === "in-progress" ? "bg-status-in-progress" : "bg-status-not-started"
                 )} />
                 <span className="text-sm truncate flex-1">{task.title}</span>
                 <span className="text-xs text-muted-foreground shrink-0">
-                  {task.kanban === "done" ? "Done" : task.kanban === "in-progress" ? "Active" : "Todo"}
+                  {task.kanban === "done" ? "Done" : task.kanban === "review" ? "Review" : task.kanban === "in-progress" ? "Active" : "Todo"}
                 </span>
               </button>
             ))}

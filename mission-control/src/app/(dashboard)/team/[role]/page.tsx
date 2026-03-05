@@ -96,6 +96,7 @@ export default function TeamMemberPage() {
   const agentTasks = tasks.filter((t) => t.assignedTo === agent.id || t.collaborators?.includes(agent.id));
   const inProgress = agentTasks.filter((t) => t.kanban === "in-progress");
   const todo = agentTasks.filter((t) => t.kanban === "not-started");
+  const inReview = agentTasks.filter((t) => t.kanban === "review");
   const completed = agentTasks.filter((t) => t.kanban === "done");
   const agentMessages = messages.filter((m) => m.from === agent.id || m.to === agent.id).slice(0, 5);
   const agentEvents = events.filter((e) => e.actor === agent.id).slice(0, 5);
@@ -202,7 +203,7 @@ export default function TeamMemberPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="bg-card/50">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold tabular-nums">{agentTasks.length}</p>
@@ -213,6 +214,12 @@ export default function TeamMemberPage() {
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold tabular-nums text-status-in-progress">{inProgress.length}</p>
             <p className="text-xs text-muted-foreground">In Progress</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-card/50">
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold tabular-nums text-status-review">{inReview.length}</p>
+            <p className="text-xs text-muted-foreground">In Review</p>
           </CardContent>
         </Card>
         <Card className="bg-card/50">
@@ -416,6 +423,20 @@ export default function TeamMemberPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {todo.map((task) => (
               <TaskCard key={task.id} task={task} project={getProject(task.projectId)} onClick={() => setSelectedTask(task)} isRunning={isTaskRunning(task.id)} onRun={runTask} allTasks={tasks} pendingDecisionTaskIds={pendingDecisionTaskIds} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {inReview.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-status-review" />
+            Needs Review ({inReview.length})
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {inReview.map((task) => (
+              <TaskCard key={task.id} task={task} project={getProject(task.projectId)} onClick={() => setSelectedTask(task)} allTasks={tasks} pendingDecisionTaskIds={pendingDecisionTaskIds} />
             ))}
           </div>
         </section>
