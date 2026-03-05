@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "@/lib/api-client";
 
 interface AgentSession {
@@ -161,6 +161,15 @@ export function useDaemon(): DaemonData {
       setError(err instanceof Error ? err.message : "Failed to stop daemon");
     }
   }, [refetch]);
+
+  // Auto-start daemon if not running after initial load
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!isLoading && !isRunning && !autoStarted.current) {
+      autoStarted.current = true;
+      start();
+    }
+  }, [isLoading, isRunning, start]);
 
   const updateConfig = useCallback(async (updates: Partial<DaemonConfig>) => {
     try {
