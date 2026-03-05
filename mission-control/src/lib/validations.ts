@@ -103,6 +103,11 @@ export const taskCreateSchema = z.object({
   tags: z.array(z.string().max(LIMITS.TAG)).max(LIMITS.MAX_TAGS).optional().default([]),
   notes: z.string().max(LIMITS.NOTES).optional().default(""),
   dueDate: z.string().max(30).nullable().optional().default(null),
+  recurrence: z.object({
+    enabled: z.boolean(),
+    intervalDays: z.number().min(1).max(365),
+    lastScheduledAt: z.string().nullable(),
+  }).nullable().optional().default(null),
   deletedAt: z.string().nullable().optional().default(null),
 });
 
@@ -127,10 +132,15 @@ export const taskUpdateSchema = z.object({
   tags: z.array(z.string().max(LIMITS.TAG)).max(LIMITS.MAX_TAGS).optional(),
   notes: z.string().max(LIMITS.NOTES).optional(),
   dueDate: z.string().max(30).nullable().optional(),
+  recurrence: z.object({
+    enabled: z.boolean(),
+    intervalDays: z.number().min(1).max(365),
+    lastScheduledAt: z.string().nullable(),
+  }).nullable().optional(),
   deletedAt: z.string().nullable().optional(),
 });
 
-// ─── Goal schemas ──────────────────────────────────────────────────────────────
+// ─── Goal schemas
 
 export const goalCreateSchema = z.object({
   title: z.string().min(1, "Title is required").max(LIMITS.TITLE),

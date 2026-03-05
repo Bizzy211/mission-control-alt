@@ -177,6 +177,11 @@ export interface Task {
   tags: string[];
   notes: string;
   dueDate: string | null;
+  recurrence?: {
+    enabled: boolean;
+    intervalDays: number;
+    lastScheduledAt: string | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -339,7 +344,7 @@ export interface ActiveRunsFile {
 
 // ─── Missions (continuous project execution) ─────────────────────────────────
 
-export type MissionStatus = "running" | "completed" | "stopped" | "stalled";
+export type MissionStatus = "running" | "completed" | "stopped" | "stalled" | "awaiting-approval";
 
 export interface MissionTaskEntry {
   taskId: string;
@@ -357,6 +362,12 @@ export interface LoopDetectionState {
   taskErrors: Record<string, string[]>;
 }
 
+export interface ApprovalGate {
+  stage: string;
+  message: string;
+  requestedAt: string;
+}
+
 export interface MissionRun {
   id: string;
   projectId: string;
@@ -371,6 +382,7 @@ export interface MissionRun {
   skippedTasks: number;
   taskHistory: MissionTaskEntry[];
   loopDetection: LoopDetectionState;
+  approvalGate?: ApprovalGate | null;
 }
 
 export interface MissionsFile {

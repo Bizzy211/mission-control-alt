@@ -63,7 +63,7 @@ export function useActiveRuns() {
         const missionsData = await missionsRes.json();
         const active: Record<string, MissionRun> = {};
         for (const m of (missionsData.missions ?? []) as MissionRun[]) {
-          if (m.status === "running" || m.status === "stalled") {
+          if (m.status === "running" || m.status === "stalled" || m.status === "awaiting-approval") {
             active[m.projectId] = m;
           }
         }

@@ -34,21 +34,23 @@ export function MissionProgress({ mission, runs, onStop }: MissionProgressProps)
   );
 
   const progress = totalTasks > 0 ? Math.round(((completedTasks + failedTasks) / totalTasks) * 100) : 0;
-  const isActive = status === "running" || status === "stalled";
+  const isActive = status === "running" || status === "stalled" || status === "awaiting-approval";
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     running: "bg-emerald-500",
     completed: "bg-blue-500",
     stopped: "bg-orange-500",
     stalled: "bg-amber-500",
-  }[status];
+    "awaiting-approval": "bg-orange-400",
+  };
 
-  const statusLabel = {
+  const statusLabel: Record<string, string> = {
     running: "Running",
     completed: "Completed",
     stopped: "Stopped",
     stalled: "Stalled",
-  }[status];
+    "awaiting-approval": "Awaiting Approval",
+  };
 
   return (
     <Card className="border-primary/20 bg-primary/[0.02]">
@@ -59,8 +61,8 @@ export function MissionProgress({ mission, runs, onStop }: MissionProgressProps)
             <Activity className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold">Mission Progress</span>
             <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
-              <div className={`h-1.5 w-1.5 rounded-full ${statusColor} ${status === "running" ? "animate-pulse" : ""}`} />
-              {statusLabel}
+              <div className={`h-1.5 w-1.5 rounded-full ${statusColor[status] ?? "bg-muted"} ${status === "running" ? "animate-pulse" : ""}`} />
+              {statusLabel[status] ?? status}
             </Badge>
           </div>
           <div className="flex items-center gap-2">

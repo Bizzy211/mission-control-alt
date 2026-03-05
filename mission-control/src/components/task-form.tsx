@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, CheckSquare, Square, Link2, Clock, CalendarDays } from "lucide-react";
+import { Plus, X, CheckSquare, Square, Link2, Clock, CalendarDays, Repeat } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,7 @@ export interface TaskFormData {
   blockedBy: string[];
   estimatedMinutes: number | null;
   dueDate: string | null;
+  recurrence: { enabled: boolean; intervalDays: number; lastScheduledAt: string | null } | null;
   acceptanceCriteria: string;
 }
 
@@ -73,6 +74,7 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
     blockedBy: initial?.blockedBy ?? [],
     estimatedMinutes: initial?.estimatedMinutes ?? null,
     dueDate: initial?.dueDate ?? null,
+    recurrence: initial?.recurrence ?? null,
     acceptanceCriteria: initial?.acceptanceCriteria ?? "",
   });
 
@@ -427,6 +429,47 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
             setForm({ ...form, dueDate: e.target.value || null })
           }
         />
+      </div>
+
+      {/* ─── Recurrence ────────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
+          <Repeat className="h-3.5 w-3.5" />
+          Repeat Schedule
+        </Label>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setForm({
+              ...form,
+              recurrence: form.recurrence ? null : { enabled: true, intervalDays: 7, lastScheduledAt: null },
+            })}
+            className={cn(
+              "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors",
+              form.recurrence ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent/50"
+            )}
+          >
+            <Repeat className="h-3 w-3" />
+            {form.recurrence ? "Recurring" : "One-time"}
+          </button>
+          {form.recurrence && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground">Every</span>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={form.recurrence.intervalDays}
+                onChange={(e) => setForm({
+                  ...form,
+                  recurrence: { ...form.recurrence!, intervalDays: parseInt(e.target.value, 10) || 7 },
+                })}
+                className="h-7 w-16 text-xs text-center"
+              />
+              <span className="text-muted-foreground">day{form.recurrence.intervalDays !== 1 ? "s" : ""}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── Subtasks ─────────────────────────────────────────────────────── */}

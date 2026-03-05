@@ -110,6 +110,7 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
         blockedBy: task.blockedBy ?? [],
         estimatedMinutes: task.estimatedMinutes ?? null,
         dueDate: task.dueDate ?? null,
+        recurrence: task.recurrence ?? null,
         acceptanceCriteria: (task.acceptanceCriteria ?? []).join("\n"),
       };
       const agent = agents.find((a) => a.id === role);

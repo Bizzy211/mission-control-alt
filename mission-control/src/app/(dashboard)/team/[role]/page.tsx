@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import {
   User, Search, Code, Megaphone, BarChart3, Send, Bot,
   Save, Plus, X, Zap, Shield, Wrench, BookOpen, Globe, Brain, Palette, HeartPulse,
+  TrendingUp, DollarSign, RotateCw, Target,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -43,7 +44,7 @@ export default function TeamMemberPage() {
   const { agents, update: updateAgent, error: agentsError, refetch } = useAgents();
   const { skills: allSkills } = useSkills();
   const { decisions } = useDecisions();
-  const { runningTaskIds, isTaskRunning, runTask } = useActiveRuns();
+  const { runs, runningTaskIds, isTaskRunning, runTask } = useActiveRuns();
   useFastTaskPoll(runningTaskIds.size > 0, refetchTasks);
   const pendingDecisionTaskIds = new Set(
     decisions.filter((d) => d.status === "pending" && d.taskId).map((d) => d.taskId as string)
@@ -221,6 +222,56 @@ export default function TeamMemberPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Stats (from active-runs) */}
+      {(() => {
+        const agentRuns = runs.filter((r) => r.agentId === agent.id && r.status !== "running");
+        if (agentRuns.length === 0) return null;
+        const completedRuns = agentRuns.filter((r) => r.status === "completed");
+        const successRate = agentRuns.length > 0 ? Math.round((completedRuns.length / agentRuns.length) * 100) : 0;
+        const costsArr = agentRuns.filter((r) => r.costUsd != null).map((r) => r.costUsd!);
+        const avgCost = costsArr.length > 0 ? costsArr.reduce((a, b) => a + b, 0) / costsArr.length : 0;
+        const turnsArr = agentRuns.filter((r) => r.numTurns != null).map((r) => r.numTurns!);
+        const avgTurns = turnsArr.length > 0 ? Math.round(turnsArr.reduce((a, b) => a + b, 0) / turnsArr.length) : 0;
+        return (
+          <section className="rounded-xl border bg-card/50 p-4 space-y-3">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Performance
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
+                <RotateCw className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-lg font-bold tabular-nums">{agentRuns.length}</p>
+                  <p className="text-[10px] text-muted-foreground">Total Runs</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
+                <Target className="h-4 w-4 text-emerald-500 shrink-0" />
+                <div>
+                  <p className="text-lg font-bold tabular-nums">{successRate}%</p>
+                  <p className="text-[10px] text-muted-foreground">Success Rate</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
+                <DollarSign className="h-4 w-4 text-amber-500 shrink-0" />
+                <div>
+                  <p className="text-lg font-bold tabular-nums">${avgCost.toFixed(3)}</p>
+                  <p className="text-[10px] text-muted-foreground">Avg Cost/Run</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-lg bg-muted/50 p-2.5">
+                <BarChart3 className="h-4 w-4 text-blue-500 shrink-0" />
+                <div>
+                  <p className="text-lg font-bold tabular-nums">{avgTurns}</p>
+                  <p className="text-[10px] text-muted-foreground">Avg Turns</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Instructions Section */}
       <section className="rounded-xl border bg-card/50 p-4 space-y-3">

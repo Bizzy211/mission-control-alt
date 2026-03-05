@@ -30,6 +30,8 @@ import {
   Palette,
   HeartPulse,
   Flag,
+  Plug,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,6 +47,7 @@ const mainLinks = [
   { href: "/objectives", label: "Objectives", icon: Crosshair },
   { href: "/projects", label: "Missions", icon: Rocket },
   { href: "/checkpoints", label: "Checkpoints", icon: Flag },
+  { href: "/schedules", label: "Schedules", icon: CalendarClock },
 ];
 
 const taskLinks = [
@@ -58,6 +61,7 @@ const commsLinks = [
   { href: "/decisions", label: "Decisions", icon: HelpCircle, badgeKey: "pendingDecisions" as const },
   { href: "/brain-dump", label: "Brain Dump", icon: Lightbulb, badgeKey: null },
   { href: "/files", label: "Files", icon: FolderOpen, badgeKey: null },
+  { href: "/mcp-servers", label: "MCP Servers", icon: Plug, badgeKey: null },
 ];
 
 // Dynamic icon lookup by name

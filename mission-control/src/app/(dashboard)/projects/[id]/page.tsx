@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { Users, X } from "lucide-react";
 import { RunButton } from "@/components/run-button";
 import { MissionProgress } from "@/components/mission-progress";
+import { DependencyGraph } from "@/components/dependency-graph";
 
 function DraggableTask({ task, onClick, isRunning, onRun, pendingDecisionTaskIds }: { task: Task; onClick: () => void; isRunning?: boolean; onRun?: (taskId: string) => void; pendingDecisionTaskIds?: Set<string> }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
@@ -276,6 +277,7 @@ export default function ProjectDetailPage() {
         <TabsList>
           <TabsTrigger value="priority-matrix">Priority Matrix</TabsTrigger>
           <TabsTrigger value="status-board">Status Board</TabsTrigger>
+          <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
         </TabsList>
 
@@ -300,6 +302,14 @@ export default function ProjectDetailPage() {
             </div>
             <DragOverlay>{activeTask ? <TaskCard task={activeTask} className="shadow-xl" /> : null}</DragOverlay>
           </DndContext>
+        </TabsContent>
+
+        <TabsContent value="dependencies">
+          <Card className="bg-card/50 overflow-x-auto">
+            <CardContent className="p-4">
+              <DependencyGraph tasks={projectTasks} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="milestones">

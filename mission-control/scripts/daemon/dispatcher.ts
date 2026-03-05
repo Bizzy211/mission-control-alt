@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, renameSync, existsSync, openSync, closeSync } from "fs";
 import { spawn } from "child_process";
 import path from "path";
+import { randomUUID } from "crypto";
 import { logger } from "./logger";
 import { AgentRunner, parseClaudeOutput } from "./runner";
 import { HealthMonitor } from "./health";
@@ -193,6 +194,9 @@ export class Dispatcher {
       logger.error("dispatcher", `Poll error: ${err instanceof Error ? err.message : String(err)}`);
     }
 
+    // Check recurring tasks that are due for rescheduling
+    this.checkRecurringTasks();
+
     // Also check for running/stalled missions that need continuation
     this.pollMissions();
   }
@@ -315,6 +319,81 @@ export class Dispatcher {
         this.retryQueue = this.retryQueue.filter(r => r.taskId !== taskId);
         this.saveRetryQueue();
       }
+    }
+  }
+
+  // ─── Recurring Task Scheduling ─────────────────────────────────────────
+
+  /**
+   * Scan completed tasks with recurrence enabled. If enough days have elapsed
+   * since the last schedule (or completion), clone the task back to not-started.
+   */
+  private checkRecurringTasks(): void {
+    try {
+      if (!existsSync(TASKS_FILE)) return;
+      const raw = readFileSync(TASKS_FILE, "utf-8");
+      const data = JSON.parse(raw) as {
+        tasks: Array<Record<string, unknown>>;
+      };
+
+      const now = new Date();
+      let changed = false;
+
+      for (const task of data.tasks) {
+        if (task.kanban !== "done" || task.deletedAt) continue;
+        const rec = task.recurrence as {
+          enabled: boolean;
+          intervalDays: number;
+          lastScheduledAt: string | null;
+        } | null;
+        if (!rec?.enabled || !rec.intervalDays) continue;
+
+        // Determine anchor: lastScheduledAt > completedAt > updatedAt
+        const anchor = rec.lastScheduledAt
+          || (task.completedAt as string | null)
+          || (task.updatedAt as string);
+        if (!anchor) continue;
+
+        const elapsed = (now.getTime() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24);
+        if (elapsed < rec.intervalDays) continue;
+
+        // Clone the task
+        const newId = randomUUID();
+        const clone: Record<string, unknown> = {
+          ...task,
+          id: newId,
+          kanban: "not-started",
+          completedAt: null,
+          actualMinutes: null,
+          comments: [],
+          dailyActions: [],
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          // Reset subtasks to unchecked
+          subtasks: Array.isArray(task.subtasks)
+            ? (task.subtasks as Array<Record<string, unknown>>).map((s) => ({ ...s, done: false }))
+            : [],
+          // Keep recurrence enabled on clone
+          recurrence: { enabled: true, intervalDays: rec.intervalDays, lastScheduledAt: null },
+        };
+
+        data.tasks.push(clone);
+
+        // Update the original's lastScheduledAt and disable its recurrence
+        // (the clone now carries the recurring schedule forward)
+        rec.lastScheduledAt = now.toISOString();
+        rec.enabled = false;
+        task.recurrence = rec;
+        changed = true;
+
+        logger.info("dispatcher", `Recurring task "${task.title}" → cloned as ${newId} (interval: ${rec.intervalDays}d)`);
+      }
+
+      if (changed) {
+        writeFileSync(TASKS_FILE, JSON.stringify(data, null, 2), "utf-8");
+      }
+    } catch (err) {
+      logger.error("dispatcher", `Recurring task check error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

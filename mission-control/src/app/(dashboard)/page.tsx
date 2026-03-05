@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Plus, CheckSquare, Target, Lightbulb, FolderOpen, Sparkles,
   Mail, HelpCircle, Activity, User, Search, Code, Megaphone, BarChart3,
-  AlertTriangle, CircleDot, ShieldAlert, Rocket, Users, Zap, Database, Square,
+  AlertTriangle, CircleDot, ShieldAlert, Rocket, Users, Zap, Database, Square, DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ import type { AgentRole } from "@/lib/types";
 import type { TaskFormData } from "@/components/task-form";
 import { apiFetch } from "@/lib/api-client";
 import { showSuccess, showError } from "@/lib/toast";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -64,12 +65,21 @@ const agentIcons: Record<AgentRole, typeof User> = {
 export default function CommandCenterPage() {
   const { data, loading, error, refetch } = useDashboardData();
   const { isRunning: daemonRunning, status: daemonStatus, start: startDaemon, stop: stopDaemon } = useDaemon();
-  const { runningTaskIds, isProjectRunning, isMissionActive, runProject, stopProject } = useActiveRuns();
+  const { runningTaskIds, activeMissions, isProjectRunning, isMissionActive, runProject, stopProject } = useActiveRuns();
   useFastTaskPoll(runningTaskIds.size > 0, refetch);
 
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateGoal, setShowCreateGoal] = useState(false);
+
+  // Cost tracking stats
+  const [costStats, setCostStats] = useState<{ today: number; week: number; month: number; totalRuns: number } | null>(null);
+  const costFetched = useRef(false);
+  useEffect(() => {
+    if (costFetched.current) return;
+    costFetched.current = true;
+    apiFetch("/api/runs/stats").then(r => r.ok ? r.json() : null).then(setCostStats).catch(() => {});
+  }, []);
 
   // Derived data from batched /api/dashboard response
   const tasks = data?.tasks ?? [];
@@ -128,7 +138,9 @@ export default function CommandCenterPage() {
     (t) => t.kanban === "done" && t.assignedTo && t.assignedTo !== "me" && t.completedAt &&
     (Date.now() - new Date(t.completedAt).getTime()) < 7 * 24 * 60 * 60 * 1000
   );
+  const awaitingApprovalMissions = Object.values(activeMissions).filter((m) => m.status === "awaiting-approval");
   const attentionItems = [
+    ...(awaitingApprovalMissions.length > 0 ? [{ key: "approval", icon: ShieldAlert, label: `${awaitingApprovalMissions.length} mission${awaitingApprovalMissions.length > 1 ? "s" : ""} awaiting approval`, href: "/projects", color: "text-orange-500" }] : []),
     ...(pendingDecisions.length > 0 ? [{ key: "decisions", icon: HelpCircle, label: `${pendingDecisions.length} pending decision${pendingDecisions.length > 1 ? "s" : ""}`, href: "/decisions", color: "text-yellow-500" }] : []),
     ...(unreadReports.length > 0 ? [{ key: "reports", icon: Mail, label: `${unreadReports.length} agent report${unreadReports.length > 1 ? "s" : ""} to review`, href: "/inbox", color: "text-blue-400" }] : []),
     ...(doQuadrantMyTasks.length > 0 ? [{ key: "do-tasks", icon: ShieldAlert, label: `${doQuadrantMyTasks.length} DO-quadrant task${doQuadrantMyTasks.length > 1 ? "s" : ""} not started`, href: "/priority-matrix", color: "text-red-400" }] : []),
@@ -417,7 +429,7 @@ export default function CommandCenterPage() {
       </Link>
 
       {/* Stats Bar */}
-      <div role="region" aria-label="Stats overview" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div role="region" aria-label="Stats overview" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Card className="bg-card/50">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -470,6 +482,19 @@ export default function CommandCenterPage() {
             </CardContent>
           </Card>
         </Link>
+        <Card className="bg-card/50">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <DollarSign className="h-4 w-4 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">${costStats ? costStats.week.toFixed(2) : "--"}</p>
+              <p className="text-xs text-muted-foreground">
+                7d spend{costStats ? ` · $${costStats.today.toFixed(2)} today` : ""}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Attention Required */}
@@ -488,7 +513,8 @@ export default function CommandCenterPage() {
                 <Link key={item.key} href={item.href}>
                   <div className="flex items-center gap-2 text-sm rounded-lg px-3 py-2 hover:bg-accent/50 transition-colors">
                     <item.icon className={cn("h-4 w-4 shrink-0", item.color)} />
-                    <span className="text-foreground">{item.label}</span>
+                    <span className="text-foreground flex-1">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">Review →</span>
                   </div>
                 </Link>
               ))}
