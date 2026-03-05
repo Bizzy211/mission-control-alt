@@ -168,7 +168,7 @@ function buildSOP(agentId: string, task: TaskDef): string {
     "## Standard Operating Procedures",
     "",
     "You MUST follow these steps:",
-    "1. Read `mission-control/data/ai-context.md` for current state",
+    "1. Read `data/ai-context.md` for current state",
     `2. Check inbox for messages addressed to you: filter \`to: "${agentId}"\``,
     "3. Execute the work described in the task",
     "4. When done, write a clear summary of what was accomplished, results, and any follow-up needed",
@@ -177,10 +177,10 @@ function buildSOP(agentId: string, task: TaskDef): string {
     "",
     "All output files (reports, research, analyses, documents, exports, etc.) MUST be saved to:",
     "",
-    "    mission-control/data/deliverables/",
+    "    data/deliverables/",
     "",
     "Use descriptive filenames, e.g. `knicks-2026-season-analysis.md`, `q1-revenue-forecast.csv`.",
-    "For large projects, create a subfolder: `deliverables/project-name/`.",
+    "For large projects, create a subfolder: `data/deliverables/project-name/`.",
     "Do NOT save deliverables to agent-specific folders like `research/` or `workspace/`.",
     "",
     "**IMPORTANT — Do NOT perform bookkeeping yourself.** The system automatically:",
@@ -198,11 +198,11 @@ function buildSOP(agentId: string, task: TaskDef): string {
     lines.push("");
     lines.push("## Subtask Progress Tracking");
     lines.push("");
-    lines.push("As you complete each subtask, update its `done` field to `true` in `mission-control/data/tasks.json`.");
+    lines.push("As you complete each subtask, update its `done` field to `true` in `data/tasks.json`.");
     lines.push("This lets the dashboard show real-time progress to the user.");
     lines.push("");
     lines.push("To update a subtask:");
-    lines.push("1. Read `mission-control/data/tasks.json`");
+    lines.push("1. Read `data/tasks.json`");
     lines.push(`2. Find the task with id \`${task.id}\``);
     lines.push("3. In its `subtasks` array, set `done: true` for the completed subtask");
     lines.push("4. Update the task's `updatedAt` to the current ISO timestamp");

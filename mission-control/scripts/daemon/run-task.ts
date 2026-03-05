@@ -107,6 +107,43 @@ function writeMissions(data: MissionsFile): void {
   writeFileSync(MISSIONS_FILE, JSON.stringify(data, null, 2), "utf-8");
 }
 
+// ─── Task Comments ──────────────────────────────────────────────────────────
+
+/**
+ * Add a comment to a task's comments array.
+ * Used to give users visibility into agent progress directly on the task.
+ */
+function addTaskComment(taskId: string, author: string, content: string): void {
+  try {
+    const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
+    const tasksData = JSON.parse(tasksRaw) as { tasks: Array<Record<string, unknown>> };
+    const task = tasksData.tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const comments = (task.comments as Array<Record<string, unknown>>) ?? [];
+    comments.push({
+      id: `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      author,
+      content,
+      createdAt: new Date().toISOString(),
+    });
+    task.comments = comments;
+    task.updatedAt = new Date().toISOString();
+    writeFileSync(TASKS_FILE, JSON.stringify(tasksData, null, 2), "utf-8");
+  } catch (err) {
+    logger.error("run-task", `Failed to add comment to task ${taskId}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Extract deliverable file paths from agent output text.
+ * Looks for paths under data/deliverables/.
+ */
+function extractDeliverablePaths(text: string): string[] {
+  const matches = text.match(/data\/deliverables\/[\w\-/.]+\.\w+/g);
+  return matches ? [...new Set(matches)] : [];
+}
+
 // ─── Post-Completion Side Effects ───────────────────────────────────────────
 
 /**
@@ -905,7 +942,7 @@ async function main() {
   const activeRunId = isContinuation ? `${runId}_c${continuationIndex}` : runId;
   logger.info("run-task", `Run ${activeRunId} created for task ${taskId} (agent: ${task.assignedTo}, session ${continuationIndex + 1})`);
 
-  // 8.5. Mark task as "in-progress" (daemon handles this instead of the agent)
+  // 8.5. Mark task as "in-progress" and add start comment
   if (!isContinuation) {
     try {
       const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
@@ -921,6 +958,10 @@ async function main() {
       logger.error("run-task", `Failed to mark task ${taskId} as in-progress: ${err instanceof Error ? err.message : String(err)}`);
       // Non-fatal — continue with execution
     }
+
+    addTaskComment(taskId, "system", `🤖 Agent **${task.assignedTo}** started working (source: ${source})`);
+  } else {
+    addTaskComment(taskId, "system", `🔄 Continuation session ${continuationIndex + 1} started`);
   }
 
   // 9. Build prompt (pass missionId for restart context)
@@ -944,8 +985,8 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
     prompt = contHeader + prompt;
   }
 
-  // 10. Spawn Claude Code
-  const runner = new AgentRunner(WORKSPACE_ROOT);
+  // 10. Spawn Claude Code (use PROJECT_ROOT so agent can find data/ and node_modules/)
+  const runner = new AgentRunner(PROJECT_ROOT);
   try {
     const result = await runner.spawnAgent({
       prompt,
@@ -954,7 +995,7 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
       skipPermissions,
       allowedTools,
       agentTeams: useAgentTeams,
-      cwd: WORKSPACE_ROOT,
+      cwd: PROJECT_ROOT,
       onSpawned: (pid) => {
         // Update the PID in active-runs immediately after spawn
         try {
@@ -1046,11 +1087,22 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
     // ── Normal completion path ──
     if (finalStatus === "completed" && result.exitCode === 0) {
       handleTaskCompletion(taskId, task.assignedTo, result.stdout);
+
+      // Add completion comment with deliverable paths
+      const summary = extractSummary(result.stdout);
+      const deliverables = extractDeliverablePaths(result.stdout);
+      const costNote = meta.totalCostUsd != null ? ` · $${meta.totalCostUsd.toFixed(2)}` : "";
+      let commentBody = `✅ **Completed** (${meta.numTurns ?? "?"} turns${costNote})\n\n${summary.slice(0, 300)}`;
+      if (deliverables.length > 0) {
+        commentBody += `\n\n**Deliverables:**\n${deliverables.map(p => `- \`${p}\``).join("\n")}`;
+      }
+      addTaskComment(taskId, task.assignedTo, commentBody);
     }
 
     // ── Failure path: all continuations exhausted ──
     if (finalStatus === "failed" || finalStatus === "timeout") {
       handleTaskFailure(taskId, task.assignedTo, errorMsg, continuationIndex);
+      addTaskComment(taskId, task.assignedTo, `❌ **Failed** after ${continuationIndex + 1} session(s)\n\n${errorMsg.slice(0, 200)}`);
     }
 
     // Chain dispatch: if this task is part of a mission, continue to next batch
