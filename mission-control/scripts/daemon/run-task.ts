@@ -35,6 +35,9 @@ const ACTIVITY_LOG_FILE = path.join(DATA_DIR, "activity-log.json");
 const MISSIONS_FILE = path.join(DATA_DIR, "missions.json");
 const DECISIONS_FILE = path.join(DATA_DIR, "decisions.json");
 const WORKSPACE_ROOT = path.resolve(__dirname, "../../..");
+// PROJECT_ROOT = mission-control project dir (where node_modules/ lives).
+// Use this as cwd when spawning child scripts so "--import tsx" resolves correctly.
+const PROJECT_ROOT = path.resolve(__dirname, "../..");
 
 // ─── Active Runs File I/O ───────────────────────────────────────────────────
 
@@ -357,7 +360,7 @@ function spawnContinuation(
 
   try {
     const child = spawn(process.execPath, args, {
-      cwd: WORKSPACE_ROOT,
+      cwd: PROJECT_ROOT,
       detached: true,
       stdio: "ignore",
       shell: false,
@@ -679,7 +682,7 @@ function handleMissionContinuation(
       }
       try {
         const child = spawn(process.execPath, args, {
-          cwd: WORKSPACE_ROOT,
+          cwd: PROJECT_ROOT,
           detached: true,
           stdio: "ignore",
           shell: false,

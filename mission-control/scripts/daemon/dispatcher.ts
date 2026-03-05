@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, renameSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, renameSync, existsSync, openSync, closeSync } from "fs";
 import { spawn } from "child_process";
 import path from "path";
 import { logger } from "./logger";
@@ -13,7 +13,13 @@ const TASKS_FILE = path.join(DATA_DIR, "tasks.json");
 const ACTIVE_RUNS_FILE = path.join(DATA_DIR, "active-runs.json");
 const DECISIONS_FILE = path.join(DATA_DIR, "decisions.json");
 const WORKSPACE_ROOT = path.resolve(__dirname, "../../..");
+// PROJECT_ROOT = mission-control project dir (where node_modules/ lives).
+// WORKSPACE_ROOT goes one level higher and resolves to "/" inside Docker,
+// which breaks tsx module resolution.  Use PROJECT_ROOT as cwd when spawning
+// run-task.ts so that "--import tsx" can find node_modules/tsx/.
+const PROJECT_ROOT = path.resolve(__dirname, "../..");
 const RETRY_QUEUE_FILE = path.join(DATA_DIR, "daemon-retry-queue.json");
+const SPAWN_STDERR_LOG = path.join(DATA_DIR, "daemon-spawn.log");
 const MAX_RETRY_DELAY_MINUTES = 60;
 
 // ─── Retry Queue ────────────────────────────────────────────────────────────
@@ -252,15 +258,18 @@ export class Dispatcher {
         args.push("--agent-teams");
       }
 
+      // Open a log file for stderr so spawn failures are diagnosable
+      const stderrFd = openSync(SPAWN_STDERR_LOG, "a");
       const child = spawn(process.execPath, args, {
-        cwd: WORKSPACE_ROOT,
+        cwd: PROJECT_ROOT,
         detached: true,
-        stdio: "ignore",
+        stdio: ["ignore", "ignore", stderrFd],
         shell: false,
       });
       child.unref();
+      closeSync(stderrFd);
 
-      logger.info("dispatcher", `Spawned run-task for ${taskId} (pid: ${child.pid})`);
+      logger.info("dispatcher", `Spawned run-task for ${taskId} (pid: ${child.pid}, cwd: ${PROJECT_ROOT})`);
     } catch (err) {
       logger.error("dispatcher", `Failed to dispatch task ${taskId}: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -423,13 +432,15 @@ export class Dispatcher {
                 args.push("--agent-teams");
               }
               try {
+                const stderrFd = openSync(SPAWN_STDERR_LOG, "a");
                 const child = spawn(process.execPath, args, {
-                  cwd: WORKSPACE_ROOT,
+                  cwd: PROJECT_ROOT,
                   detached: true,
-                  stdio: "ignore",
+                  stdio: ["ignore", "ignore", stderrFd],
                   shell: false,
                 });
                 child.unref();
+                closeSync(stderrFd);
                 logger.info("dispatcher", `Mission ${mission.id}: re-dispatched task ${task.id} (pid: ${child.pid})`);
               } catch (err) {
                 logger.error("dispatcher", `Mission ${mission.id}: failed to re-dispatch task ${task.id}: ${err instanceof Error ? err.message : String(err)}`);
