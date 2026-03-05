@@ -388,7 +388,7 @@ export default function TeamMemberPage() {
                 <button
                   key={skill.id}
                   onClick={() => addSkill(skill.id)}
-                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs hover:bg-primary/10 hover:border-primary/30 transition-all"
                 >
                   <Plus className="h-3 w-3" />
                   {skill.name}

@@ -52,7 +52,7 @@ function CopyButton({ text }: { text: string }) {
 function SkillCard({ skill, agentNames }: { skill: SkillDefinition; agentNames: string[] }) {
   return (
     <Link href={`/skills/${skill.id}`}>
-      <div className="group rounded-xl border bg-card p-5 transition-all hover:shadow-md hover:border-primary/30">
+      <div className="group rounded-xl border bg-card p-5 transition-all hover:shadow-lg hover:border-primary/30">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-semibold text-sm group-hover:text-primary transition-colors">
@@ -299,7 +299,7 @@ function SkillStoreTab({ installedNames, onInstalled }: { installedNames: Set<st
               return (
                 <div
                   key={skill.id}
-                  className="rounded-xl border bg-card p-5 transition-all hover:shadow-md hover:border-primary/30"
+                  className="rounded-xl border bg-card p-5 transition-all hover:shadow-lg hover:border-primary/30"
                 >
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">

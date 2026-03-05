@@ -277,7 +277,7 @@ export default function CommandCenterPage() {
 
             <div className="grid gap-3 sm:grid-cols-2 text-left">
               <Card
-                className="cursor-pointer hover:border-primary/30 transition-all"
+                className="cursor-pointer"
                 onClick={() => setShowCreateProject(true)}
               >
                 <CardContent className="p-4 flex items-start gap-3">
@@ -292,7 +292,7 @@ export default function CommandCenterPage() {
               </Card>
 
               <Card
-                className="cursor-pointer hover:border-primary/30 transition-all"
+                className="cursor-pointer"
                 onClick={() => setShowCreateTask(true)}
               >
                 <CardContent className="p-4 flex items-start gap-3">
@@ -366,7 +366,7 @@ export default function CommandCenterPage() {
       {/* Mission Control Autopilot */}
       <Link href="/launch" className="block">
         <Card className={cn(
-          "cursor-pointer transition-all hover:shadow-lg hover:border-primary/30",
+          "cursor-pointer",
           daemonRunning && "border-green-500/20 bg-green-500/5"
         )}>
           <CardContent className="p-4">
@@ -469,7 +469,7 @@ export default function CommandCenterPage() {
           </CardContent>
         </Card>
         <Link href="/brain-dump">
-          <Card className="bg-card/50 cursor-pointer hover:border-primary/30 transition-all">
+          <Card className="bg-card/50 cursor-pointer">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Lightbulb className="h-4 w-4 text-primary" />
@@ -545,7 +545,7 @@ export default function CommandCenterPage() {
       <div role="region" aria-label="Communications" className="grid gap-4 lg:grid-cols-2">
         {/* Inbox Widget */}
         <Link href="/inbox">
-          <Card className="bg-card/50 cursor-pointer transition-all hover:shadow-lg hover:border-primary/30 h-full">
+          <Card className="bg-card/50 cursor-pointer h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -589,7 +589,7 @@ export default function CommandCenterPage() {
         {/* Decisions Widget */}
         <Link href="/decisions">
           <Card className={cn(
-            "bg-card/50 cursor-pointer transition-all hover:shadow-lg hover:border-primary/30 h-full",
+            "bg-card/50 cursor-pointer h-full",
             pendingDecisions.length > 0 && "border-yellow-500/20"
           )}>
             <CardHeader className="pb-2">
@@ -634,7 +634,7 @@ export default function CommandCenterPage() {
       <div role="region" aria-label="Activity and agent workload" className="grid gap-4 lg:grid-cols-2">
         {/* Activity Feed */}
         <Link href="/activity">
-          <Card className="bg-card/50 cursor-pointer transition-all hover:shadow-lg hover:border-primary/30 h-full">
+          <Card className="bg-card/50 cursor-pointer h-full">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Activity className="h-4 w-4 text-primary" />
@@ -750,7 +750,7 @@ export default function CommandCenterPage() {
             <ProjectCardLarge key={project.id} project={project} tasks={tasks} goals={goals} isRunning={isProjectRunning(project.id)} isMissionActive={isMissionActive(project.id)} onRun={runProject} onStop={stopProject} />
           ))}
           {projects.filter((p) => p.status === "active").length === 0 && (
-            <Card className="border-dashed cursor-pointer hover:border-primary/30" onClick={() => setShowCreateProject(true)}>
+            <Card className="border-dashed cursor-pointer" onClick={() => setShowCreateProject(true)}>
               <CardContent className="p-6 flex flex-col items-center justify-center text-muted-foreground">
                 <Plus className="h-8 w-8 mb-2" />
                 <p className="text-sm">Create your first project</p>
@@ -787,7 +787,7 @@ export default function CommandCenterPage() {
         {/* Recent Brain Dump */}
         {unprocessedEntries.length > 0 && (
           <Link href="/brain-dump">
-            <Card className="cursor-pointer transition-all hover:shadow-lg hover:border-primary/30 h-full">
+            <Card className="cursor-pointer h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center justify-between">
                   Brain Dump

@@ -85,7 +85,7 @@ export function TaskCard({ task, project, agents = [], className, isDragging, on
   return (
     <Card
       className={cn(
-        "cursor-grab select-none transition-all hover:shadow-md hover:border-primary/20 animate-fade-in-up",
+        "cursor-grab select-none animate-fade-in-up",
         isDragging && "opacity-50 shadow-lg rotate-1",
         onClick && "cursor-pointer",
         isBlocked && "opacity-60 border-red-500/30",

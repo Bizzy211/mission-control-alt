@@ -77,7 +77,7 @@ function AgentCard({
     <Link href={`/team/${agent.id}`}>
       <div
         className={cn(
-          "group rounded-xl border bg-card p-5 transition-all hover:shadow-md hover:border-primary/30",
+          "group rounded-xl border bg-card p-5 transition-all hover:shadow-lg hover:border-primary/30",
           isInactive && "opacity-60"
         )}
       >

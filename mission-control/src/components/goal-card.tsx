@@ -30,7 +30,7 @@ export function GoalCard({ goal, tasks, projects, milestones }: GoalCardProps) {
   };
 
   return (
-    <Card className="transition-all hover:shadow-md animate-fade-in-up">
+    <Card className="animate-fade-in-up">
       <CardContent className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
