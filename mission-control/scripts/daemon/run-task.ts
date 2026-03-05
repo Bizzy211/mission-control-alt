@@ -239,6 +239,21 @@ function handleTaskCompletion(taskId: string, agentId: string, stdout: string): 
 function handleTaskFailure(taskId: string, agentId: string, errorMsg: string, continuationIndex: number): void {
   const now = new Date().toISOString();
 
+  // 0. Reset task kanban to "not-started" so daemon can retry on next poll
+  try {
+    const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
+    const tasksData = JSON.parse(tasksRaw) as { tasks: Array<Record<string, unknown>> };
+    const task = tasksData.tasks.find((t) => t.id === taskId);
+    if (task && task.kanban === "in-progress") {
+      task.kanban = "not-started";
+      task.updatedAt = now;
+      writeFileSync(TASKS_FILE, JSON.stringify(tasksData, null, 2), "utf-8");
+      logger.info("run-task", `Reset task ${taskId} kanban to not-started after failure`);
+    }
+  } catch (err) {
+    logger.error("run-task", `Failed to reset task ${taskId} kanban: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   // 1. Log activity event
   try {
     const logRaw = existsSync(ACTIVITY_LOG_FILE)

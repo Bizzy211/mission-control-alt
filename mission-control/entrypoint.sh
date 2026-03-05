@@ -43,6 +43,13 @@ fi
 [ -f /app/data/daemon-config.json ] || echo '{}'                 > /app/data/daemon-config.json
 echo "[entrypoint] Data files ready."
 
+# ─── Fix ownership for non-root Claude Code processes ────────────────────────
+# The daemon spawns Claude Code as the "node" user (uid 1000) because
+# --dangerously-skip-permissions refuses to run as root.  The node user
+# needs write access to /app/data (deliverables, checkpoints, etc.).
+echo "[entrypoint] Setting data dir ownership for node user..."
+chown -R node:node /app/data
+
 echo "[entrypoint] Starting Mission Control daemon..."
 pnpm daemon:start &
 

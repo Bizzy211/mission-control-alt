@@ -252,12 +252,22 @@ export class AgentRunner {
     logger.debug("runner", `Spawning: ${resolved.bin} ${resolved.prefixArgs.length ? resolved.prefixArgs[0] + " " : ""}-p "<prompt>" --max-turns ${opts.maxTurns}`);
     logger.debug("runner", `CWD: ${opts.cwd || this.cwd}`);
 
+    // Drop root privileges when spawning Claude Code inside Docker.
+    // --dangerously-skip-permissions refuses to run as root, so we spawn
+    // as the "node" user (uid 1000) that ships with node:*-alpine images.
+    const isRoot = process.platform !== "win32" && typeof process.getuid === "function" && process.getuid() === 0;
+    if (isRoot) {
+      safeEnv.HOME = "/home/node";
+      logger.info("runner", "Running as root — dropping to uid=1000 (node) for Claude Code spawn");
+    }
+
     return new Promise<SpawnResult & { pid: number }>((resolve) => {
       const child: ChildProcess = spawn(resolved.bin, args, {
         cwd: opts.cwd || this.cwd,
         env: safeEnv as NodeJS.ProcessEnv,
         stdio: ["ignore", "pipe", "pipe"] as const,
         windowsHide: true,
+        ...(isRoot ? { uid: 1000, gid: 1000 } : {}),
       });
 
       const pid = child.pid ?? 0;
