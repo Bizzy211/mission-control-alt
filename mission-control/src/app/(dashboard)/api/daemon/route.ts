@@ -140,18 +140,6 @@ export async function PUT(request: Request) {
   if (!validation.success) return validation.error;
   const updates = validation.data;
 
-  // SECURITY: Reject attempts to enable skipPermissions via API.
-  // This can only be set by manually editing data/daemon-config.json.
-  if (updates.execution?.skipPermissions === true) {
-    return NextResponse.json(
-      {
-        error: "Cannot enable skipPermissions via API",
-        details: "skipPermissions can only be set by manually editing data/daemon-config.json. This is a safety measure to prevent remote escalation.",
-      },
-      { status: 403 }
-    );
-  }
-
   // Atomic read-modify-write with mutex
   const newConfig = await mutateDaemonConfig(async (currentConfig) => {
     // Section-level merge: replace entire sections, not individual fields
