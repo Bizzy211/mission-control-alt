@@ -959,9 +959,9 @@ async function main() {
       // Non-fatal — continue with execution
     }
 
-    addTaskComment(taskId, "system", `🤖 Agent **${task.assignedTo}** started working (source: ${source})`);
+    addTaskComment(taskId, task.assignedTo, `Picking this up now.`);
   } else {
-    addTaskComment(taskId, "system", `🔄 Continuation session ${continuationIndex + 1} started`);
+    addTaskComment(taskId, task.assignedTo, `Continuing where I left off (session ${continuationIndex + 1}).`);
   }
 
   // 9. Build prompt (pass missionId for restart context)
@@ -1088,21 +1088,23 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
     if (finalStatus === "completed" && result.exitCode === 0) {
       handleTaskCompletion(taskId, task.assignedTo, result.stdout);
 
-      // Add completion comment with deliverable paths
+      // Add human-like completion comment with deliverable paths
       const summary = extractSummary(result.stdout);
       const deliverables = extractDeliverablePaths(result.stdout);
-      const costNote = meta.totalCostUsd != null ? ` · $${meta.totalCostUsd.toFixed(2)}` : "";
-      let commentBody = `✅ **Completed** (${meta.numTurns ?? "?"} turns${costNote})\n\n${summary.slice(0, 300)}`;
+      const costNote = meta.totalCostUsd != null ? ` ($${meta.totalCostUsd.toFixed(2)})` : "";
+      let commentBody = `Done — ${summary.slice(0, 300)}`;
       if (deliverables.length > 0) {
-        commentBody += `\n\n**Deliverables:**\n${deliverables.map(p => `- \`${p}\``).join("\n")}`;
+        commentBody += `\n\nSaved to ${deliverables.map(p => `\`${p}\``).join(", ")}.`;
       }
+      commentBody += `\n\n_${meta.numTurns ?? "?"} turns${costNote}_`;
       addTaskComment(taskId, task.assignedTo, commentBody);
     }
 
     // ── Failure path: all continuations exhausted ──
     if (finalStatus === "failed" || finalStatus === "timeout") {
       handleTaskFailure(taskId, task.assignedTo, errorMsg, continuationIndex);
-      addTaskComment(taskId, task.assignedTo, `❌ **Failed** after ${continuationIndex + 1} session(s)\n\n${errorMsg.slice(0, 200)}`);
+      const sessions = continuationIndex + 1;
+      addTaskComment(taskId, task.assignedTo, `Ran into an issue${sessions > 1 ? ` after ${sessions} sessions` : ""}: ${errorMsg.slice(0, 200)}. Resetting so I can retry.`);
     }
 
     // Chain dispatch: if this task is part of a mission, continue to next batch

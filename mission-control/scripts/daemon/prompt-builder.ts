@@ -44,6 +44,11 @@ interface TaskDef {
   estimatedMinutes: number | null;
 }
 
+interface ProjectDef {
+  id: string;
+  name: string;
+}
+
 // ─── Data Reading ────────────────────────────────────────────────────────────
 
 function readJSON<T>(filename: string): T {
@@ -55,6 +60,28 @@ function readJSON<T>(filename: string): T {
 function getAgent(agentId: string): AgentDef | null {
   const data = readJSON<{ agents: AgentDef[] }>("agents.json");
   return data.agents.find(a => a.id === agentId) ?? null;
+}
+
+function getProject(projectId: string | null): ProjectDef | null {
+  if (!projectId) return null;
+  try {
+    const data = readJSON<{ projects: ProjectDef[] }>("projects.json");
+    return data.projects.find(p => p.id === projectId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Slugify a string for use as a folder name.
+ * e.g. "Website Redesign" → "website-redesign"
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 }
 
 function getLinkedSkills(agent: AgentDef): SkillDef[] {
@@ -164,6 +191,11 @@ function buildTaskInstructions(task: TaskDef): string {
  * Build the standard operating procedures section
  */
 function buildSOP(agentId: string, task: TaskDef): string {
+  // Determine the deliverable subfolder: project slug or today's date
+  const project = getProject(task.projectId);
+  const subfolder = project ? slugify(project.name) : new Date().toISOString().slice(0, 10);
+  const deliverablePath = `data/deliverables/${subfolder}/`;
+
   const lines = [
     "## Standard Operating Procedures",
     "",
@@ -177,10 +209,10 @@ function buildSOP(agentId: string, task: TaskDef): string {
     "",
     "All output files (reports, research, analyses, documents, exports, etc.) MUST be saved to:",
     "",
-    "    data/deliverables/",
+    `    ${deliverablePath}`,
     "",
+    "Create the subfolder if it does not exist.",
     "Use descriptive filenames, e.g. `knicks-2026-season-analysis.md`, `q1-revenue-forecast.csv`.",
-    "For large projects, create a subfolder: `data/deliverables/project-name/`.",
     "Do NOT save deliverables to agent-specific folders like `research/` or `workspace/`.",
     "",
     "**IMPORTANT — Do NOT perform bookkeeping yourself.** The system automatically:",
