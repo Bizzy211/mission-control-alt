@@ -522,7 +522,7 @@ export default function FilesPage() {
   if (loading && !entries.length) {
     return (
       <div className="space-y-6">
-        <BreadcrumbNav items={[{ label: "Files" }]} />
+        <BreadcrumbNav items={[{ label: "Deliverables" }]} />
         <div className="flex items-center gap-2 text-muted-foreground">
           <RefreshCw className="h-4 w-4 animate-spin" />
           <span className="text-sm">Loading files…</span>
@@ -534,7 +534,7 @@ export default function FilesPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <BreadcrumbNav items={[{ label: "Files" }]} />
+        <BreadcrumbNav items={[{ label: "Deliverables" }]} />
         <ErrorState message={error} onRetry={() => fetchDir(currentPath)} />
       </div>
     );
@@ -542,13 +542,13 @@ export default function FilesPage() {
 
   return (
     <div className="space-y-4">
-      <BreadcrumbNav items={[{ label: "Files" }]} />
+      <BreadcrumbNav items={[{ label: "Deliverables" }]} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold flex items-center gap-2">
           <FolderOpen className="h-5 w-5" />
-          Files
+          Deliverables
         </h1>
         <div className="flex items-center gap-2">
           {(stats.files > 0 || stats.dirs > 0) && (
@@ -576,7 +576,7 @@ export default function FilesPage() {
               )}
             >
               <Home className="h-3 w-3" />
-              data
+              deliverables
             </button>
             {pathSegments.map((seg, i) => (
               <span key={i} className="flex items-center gap-1 shrink-0">
@@ -666,7 +666,7 @@ export default function FilesPage() {
               })}
 
               {filteredEntries.length === 0 && !searchFilter && (
-                <EmptyState icon={FolderOpen} title="Empty directory" description="No files here yet. Agent outputs will appear as they're created." compact />
+                <EmptyState icon={FolderOpen} title="Empty directory" description="No deliverables here yet. Agent outputs will appear as they're created." compact />
               )}
               {filteredEntries.length === 0 && searchFilter && (
                 <EmptyState icon={Search} title="No matches" description={`No files matching "${searchFilter}"`} compact />

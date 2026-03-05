@@ -4,7 +4,7 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
-const DATA_ROOT = path.join(process.cwd(), "data");
+const DATA_ROOT = path.join(process.cwd(), "data", "deliverables");
 
 /** Prevent path traversal — resolved path must be within DATA_ROOT */
 function safePath(relative: string): string | null {
