@@ -134,9 +134,8 @@ export default function CommandCenterPage() {
     (t) => t.importance === "important" && t.urgency === "urgent" && t.assignedTo === "me" && t.kanban === "not-started"
   );
   const unreadReports = unreadMessages.filter((m) => m.type === "report");
-  const recentCompletions = tasks.filter(
-    (t) => t.kanban === "done" && t.assignedTo && t.assignedTo !== "me" && t.completedAt &&
-    (Date.now() - new Date(t.completedAt).getTime()) < 7 * 24 * 60 * 60 * 1000
+  const needsReviewTasks = tasks.filter(
+    (t) => t.kanban === "review" && t.assignedTo && t.assignedTo !== "me"
   );
   const awaitingApprovalMissions = Object.values(activeMissions).filter((m) => m.status === "awaiting-approval");
   const attentionItems = [
@@ -144,7 +143,7 @@ export default function CommandCenterPage() {
     ...(pendingDecisions.length > 0 ? [{ key: "decisions", icon: HelpCircle, label: `${pendingDecisions.length} pending decision${pendingDecisions.length > 1 ? "s" : ""}`, href: "/decisions", color: "text-yellow-500" }] : []),
     ...(unreadReports.length > 0 ? [{ key: "reports", icon: Mail, label: `${unreadReports.length} agent report${unreadReports.length > 1 ? "s" : ""} to review`, href: "/inbox", color: "text-blue-400" }] : []),
     ...(doQuadrantMyTasks.length > 0 ? [{ key: "do-tasks", icon: ShieldAlert, label: `${doQuadrantMyTasks.length} DO-quadrant task${doQuadrantMyTasks.length > 1 ? "s" : ""} not started`, href: "/priority-matrix", color: "text-red-400" }] : []),
-    ...(recentCompletions.length > 0 ? [{ key: "completions", icon: CheckSquare, label: `${recentCompletions.length} completed task${recentCompletions.length > 1 ? "s" : ""} to review`, href: "/status-board", color: "text-green-400" }] : []),
+    ...(needsReviewTasks.length > 0 ? [{ key: "review", icon: CheckSquare, label: `${needsReviewTasks.length} task${needsReviewTasks.length > 1 ? "s" : ""} awaiting your review`, href: "/status-board", color: "text-green-400" }] : []),
   ];
 
   const handleCreateTask = async (formData: TaskFormData) => {
@@ -365,7 +364,7 @@ export default function CommandCenterPage() {
       <BreadcrumbNav items={[]} />
 
       {/* Mission Control Autopilot */}
-      <Link href="/launch">
+      <Link href="/launch" className="block">
         <Card className={cn(
           "cursor-pointer transition-all hover:shadow-lg hover:border-primary/30",
           daemonRunning && "border-green-500/20 bg-green-500/5"
