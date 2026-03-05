@@ -1,0 +1,949 @@
+================================================================================
+  EVPN-VXLAN MULTI-TENANCY LAB — DEVICE CONFIGURATIONS
+  Platform: Cisco Nexus 9000v (nxosv9k) on Eve-NG
+================================================================================
+
+EVE-NG REQUIREMENTS
+-------------------
+  Image:    nxosv9k-10.3.x or nxosv9k-9.3.x (QCOW2)
+  RAM:      8 GB per Nexus 9000v (minimum)
+  vCPU:     2 per device
+  Total:    6 switches × 8 GB = 48 GB RAM + 4 hosts
+  Hosts:    Use Linux (alpine/tiny) or VPCS for lightweight host emulation
+
+  Tip: If 48 GB is too heavy, consider Arista vEOS (2-4 GB each) with
+  equivalent EOS configs. The topology and overlay design are identical.
+
+
+================================================================================
+  IP ADDRESSING SUMMARY
+================================================================================
+
+LOOPBACKS
+---------
+  Device    Lo0 (Router-ID / BGP)    Lo1 (VTEP Source)
+  --------  -----------------------  ------------------
+  SPINE-1   10.0.0.1/32              N/A
+  SPINE-2   10.0.0.2/32              N/A
+  LEAF-1    10.0.0.11/32             10.0.1.11/32
+  LEAF-2    10.0.0.12/32             10.0.1.12/32
+  LEAF-3    10.0.0.13/32             10.0.1.13/32
+  LEAF-4    10.0.0.14/32             10.0.1.14/32
+
+POINT-TO-POINT LINKS (UNDERLAY — OSPF AREA 0)
+----------------------------------------------
+  Link              Spine Interface   Spine IP       Leaf Interface   Leaf IP
+  ----------------  ---------------   ----------     --------------   ----------
+  Spine1 ↔ Leaf1    Eth1/1            10.1.1.0/31    Eth1/1           10.1.1.1/31
+  Spine1 ↔ Leaf2    Eth1/2            10.1.1.2/31    Eth1/1           10.1.1.3/31
+  Spine1 ↔ Leaf3    Eth1/3            10.1.1.4/31    Eth1/1           10.1.1.5/31
+  Spine1 ↔ Leaf4    Eth1/4            10.1.1.6/31    Eth1/1           10.1.1.7/31
+  Spine2 ↔ Leaf1    Eth1/1            10.1.2.0/31    Eth1/2           10.1.2.1/31
+  Spine2 ↔ Leaf2    Eth1/2            10.1.2.2/31    Eth1/2           10.1.2.3/31
+  Spine2 ↔ Leaf3    Eth1/3            10.1.2.4/31    Eth1/2           10.1.2.5/31
+  Spine2 ↔ Leaf4    Eth1/4            10.1.2.6/31    Eth1/2           10.1.2.7/31
+
+OVERLAY — TENANT SUBNETS
+-------------------------
+  Tenant     VRF          VLAN   VNI     L3 VNI   L3 VLAN   Subnet             Anycast GW
+  ---------  -----------  ----   ------  ------   -------   -----------------  ----------
+  Tenant-A   TENANT-A     10     10010   50001    901       192.168.10.0/24    .1
+  Tenant-B   TENANT-B     20     10020   50002    902       192.168.20.0/24    .1
+
+HOST ADDRESSING
+---------------
+  Host       Leaf     VLAN   IP Address        Default GW       Tenant
+  --------   ------   ----   ---------------   --------------   --------
+  HOST-A1    LEAF-1   10     192.168.10.10     192.168.10.1     Tenant-A
+  HOST-B1    LEAF-2   20     192.168.20.10     192.168.20.1     Tenant-B
+  HOST-A2    LEAF-3   10     192.168.10.20     192.168.10.1     Tenant-A
+  HOST-B2    LEAF-4   20     192.168.20.20     192.168.20.1     Tenant-B
+
+  Expected connectivity:
+    HOST-A1 ↔ HOST-A2  ✓  (same Tenant-A, same VLAN 10, L2 stretched via VXLAN)
+    HOST-B1 ↔ HOST-B2  ✓  (same Tenant-B, same VLAN 20, L2 stretched via VXLAN)
+    HOST-A1 ↔ HOST-B1  ✗  (different VRFs — tenant isolation enforced)
+
+ANYCAST GATEWAY MAC
+-------------------
+  All leafs share: 0000.2222.3333
+  This enables seamless host mobility — the default gateway MAC is identical
+  on every leaf, so hosts can move between leafs without ARP changes.
+
+BGP DESIGN
+----------
+  AS:             65000 (iBGP)
+  Address Family: L2VPN EVPN
+  Spines:         Route Reflectors (all leafs are RR clients)
+  Replication:    Ingress Replication (no multicast required)
+
+
+================================================================================
+  SPINE-1 CONFIGURATION
+================================================================================
+
+hostname SPINE-1
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+
+router ospf UNDERLAY
+  router-id 10.0.0.1
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.1/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to LEAF-1 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.1.0/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to LEAF-2 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.1.2/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/3
+  description to LEAF-3 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.1.4/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/4
+  description to LEAF-4 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.1.6/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+router bgp 65000
+  router-id 10.0.0.1
+  address-family l2vpn evpn
+    retain route-target all
+  template peer LEAF
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+      route-reflector-client
+  neighbor 10.0.0.11
+    inherit peer LEAF
+    description LEAF-1
+  neighbor 10.0.0.12
+    inherit peer LEAF
+    description LEAF-2
+  neighbor 10.0.0.13
+    inherit peer LEAF
+    description LEAF-3
+  neighbor 10.0.0.14
+    inherit peer LEAF
+    description LEAF-4
+
+
+================================================================================
+  SPINE-2 CONFIGURATION
+================================================================================
+
+hostname SPINE-2
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+
+router ospf UNDERLAY
+  router-id 10.0.0.2
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.2/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to LEAF-1 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.2.0/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to LEAF-2 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.2.2/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/3
+  description to LEAF-3 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.2.4/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/4
+  description to LEAF-4 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.2.6/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+router bgp 65000
+  router-id 10.0.0.2
+  address-family l2vpn evpn
+    retain route-target all
+  template peer LEAF
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+      route-reflector-client
+  neighbor 10.0.0.11
+    inherit peer LEAF
+    description LEAF-1
+  neighbor 10.0.0.12
+    inherit peer LEAF
+    description LEAF-2
+  neighbor 10.0.0.13
+    inherit peer LEAF
+    description LEAF-3
+  neighbor 10.0.0.14
+    inherit peer LEAF
+    description LEAF-4
+
+
+================================================================================
+  LEAF-1 CONFIGURATION
+  Access: HOST-A1 (Tenant-A, VLAN 10)
+================================================================================
+
+hostname LEAF-1
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+feature vn-segment-vlan-based
+feature interface-vlan
+
+fabric forwarding anycast-gateway-mac 0000.2222.3333
+
+! ── VLANs & VNI Mappings ──────────────────────────────────────────────
+vlan 10
+  name TENANT-A-DATA
+  vn-segment 10010
+
+vlan 20
+  name TENANT-B-DATA
+  vn-segment 10020
+
+vlan 901
+  name TENANT-A-L3VNI
+  vn-segment 50001
+
+vlan 902
+  name TENANT-B-L3VNI
+  vn-segment 50002
+
+! ── VRF Definitions ───────────────────────────────────────────────────
+vrf context TENANT-A
+  vni 50001
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+vrf context TENANT-B
+  vni 50002
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+! ── Underlay (OSPF) ──────────────────────────────────────────────────
+router ospf UNDERLAY
+  router-id 10.0.0.11
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.11/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface loopback1
+  description VTEP Source
+  ip address 10.0.1.11/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to SPINE-1 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.1.1/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to SPINE-2 Eth1/1
+  no switchport
+  mtu 9216
+  ip address 10.1.2.1/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+! ── Access Port ──────────────────────────────────────────────────────
+interface Ethernet1/3
+  description to HOST-A1
+  switchport
+  switchport mode access
+  switchport access vlan 10
+  no shutdown
+
+! ── SVIs (Anycast Gateway) ───────────────────────────────────────────
+interface Vlan10
+  description Tenant-A Data Gateway
+  no shutdown
+  vrf member TENANT-A
+  ip address 192.168.10.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan20
+  description Tenant-B Data Gateway
+  no shutdown
+  vrf member TENANT-B
+  ip address 192.168.20.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan901
+  description Tenant-A L3VNI SVI
+  no shutdown
+  vrf member TENANT-A
+  ip forward
+
+interface Vlan902
+  description Tenant-B L3VNI SVI
+  no shutdown
+  vrf member TENANT-B
+  ip forward
+
+! ── VXLAN (NVE) ──────────────────────────────────────────────────────
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  member vni 10010
+    ingress-replication protocol bgp
+  member vni 10020
+    ingress-replication protocol bgp
+  member vni 50001 associate-vrf
+  member vni 50002 associate-vrf
+
+! ── BGP EVPN ─────────────────────────────────────────────────────────
+router bgp 65000
+  router-id 10.0.0.11
+  address-family l2vpn evpn
+  template peer SPINE
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+  neighbor 10.0.0.1
+    inherit peer SPINE
+    description SPINE-1
+  neighbor 10.0.0.2
+    inherit peer SPINE
+    description SPINE-2
+  vrf TENANT-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+  vrf TENANT-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+
+! ── EVPN VNI ─────────────────────────────────────────────────────────
+evpn
+  vni 10010 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+  vni 10020 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+
+================================================================================
+  LEAF-2 CONFIGURATION
+  Access: HOST-B1 (Tenant-B, VLAN 20)
+================================================================================
+
+hostname LEAF-2
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+feature vn-segment-vlan-based
+feature interface-vlan
+
+fabric forwarding anycast-gateway-mac 0000.2222.3333
+
+! ── VLANs & VNI Mappings ─────────────────────────────────────────────
+vlan 10
+  name TENANT-A-DATA
+  vn-segment 10010
+
+vlan 20
+  name TENANT-B-DATA
+  vn-segment 10020
+
+vlan 901
+  name TENANT-A-L3VNI
+  vn-segment 50001
+
+vlan 902
+  name TENANT-B-L3VNI
+  vn-segment 50002
+
+! ── VRFs ─────────────────────────────────────────────────────────────
+vrf context TENANT-A
+  vni 50001
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+vrf context TENANT-B
+  vni 50002
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+! ── Underlay ─────────────────────────────────────────────────────────
+router ospf UNDERLAY
+  router-id 10.0.0.12
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.12/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface loopback1
+  description VTEP Source
+  ip address 10.0.1.12/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to SPINE-1 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.1.3/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to SPINE-2 Eth1/2
+  no switchport
+  mtu 9216
+  ip address 10.1.2.3/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+! ── Access Port ──────────────────────────────────────────────────────
+interface Ethernet1/3
+  description to HOST-B1
+  switchport
+  switchport mode access
+  switchport access vlan 20
+  no shutdown
+
+! ── SVIs ─────────────────────────────────────────────────────────────
+interface Vlan10
+  description Tenant-A Data Gateway
+  no shutdown
+  vrf member TENANT-A
+  ip address 192.168.10.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan20
+  description Tenant-B Data Gateway
+  no shutdown
+  vrf member TENANT-B
+  ip address 192.168.20.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan901
+  description Tenant-A L3VNI SVI
+  no shutdown
+  vrf member TENANT-A
+  ip forward
+
+interface Vlan902
+  description Tenant-B L3VNI SVI
+  no shutdown
+  vrf member TENANT-B
+  ip forward
+
+! ── VXLAN (NVE) ──────────────────────────────────────────────────────
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  member vni 10010
+    ingress-replication protocol bgp
+  member vni 10020
+    ingress-replication protocol bgp
+  member vni 50001 associate-vrf
+  member vni 50002 associate-vrf
+
+! ── BGP EVPN ─────────────────────────────────────────────────────────
+router bgp 65000
+  router-id 10.0.0.12
+  address-family l2vpn evpn
+  template peer SPINE
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+  neighbor 10.0.0.1
+    inherit peer SPINE
+    description SPINE-1
+  neighbor 10.0.0.2
+    inherit peer SPINE
+    description SPINE-2
+  vrf TENANT-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+  vrf TENANT-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+
+evpn
+  vni 10010 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+  vni 10020 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+
+================================================================================
+  LEAF-3 CONFIGURATION
+  Access: HOST-A2 (Tenant-A, VLAN 10)
+================================================================================
+
+hostname LEAF-3
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+feature vn-segment-vlan-based
+feature interface-vlan
+
+fabric forwarding anycast-gateway-mac 0000.2222.3333
+
+! ── VLANs & VNI Mappings ─────────────────────────────────────────────
+vlan 10
+  name TENANT-A-DATA
+  vn-segment 10010
+
+vlan 20
+  name TENANT-B-DATA
+  vn-segment 10020
+
+vlan 901
+  name TENANT-A-L3VNI
+  vn-segment 50001
+
+vlan 902
+  name TENANT-B-L3VNI
+  vn-segment 50002
+
+! ── VRFs ─────────────────────────────────────────────────────────────
+vrf context TENANT-A
+  vni 50001
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+vrf context TENANT-B
+  vni 50002
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+! ── Underlay ─────────────────────────────────────────────────────────
+router ospf UNDERLAY
+  router-id 10.0.0.13
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.13/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface loopback1
+  description VTEP Source
+  ip address 10.0.1.13/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to SPINE-1 Eth1/3
+  no switchport
+  mtu 9216
+  ip address 10.1.1.5/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to SPINE-2 Eth1/3
+  no switchport
+  mtu 9216
+  ip address 10.1.2.5/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+! ── Access Port ──────────────────────────────────────────────────────
+interface Ethernet1/3
+  description to HOST-A2
+  switchport
+  switchport mode access
+  switchport access vlan 10
+  no shutdown
+
+! ── SVIs ─────────────────────────────────────────────────────────────
+interface Vlan10
+  description Tenant-A Data Gateway
+  no shutdown
+  vrf member TENANT-A
+  ip address 192.168.10.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan20
+  description Tenant-B Data Gateway
+  no shutdown
+  vrf member TENANT-B
+  ip address 192.168.20.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan901
+  description Tenant-A L3VNI SVI
+  no shutdown
+  vrf member TENANT-A
+  ip forward
+
+interface Vlan902
+  description Tenant-B L3VNI SVI
+  no shutdown
+  vrf member TENANT-B
+  ip forward
+
+! ── VXLAN (NVE) ──────────────────────────────────────────────────────
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  member vni 10010
+    ingress-replication protocol bgp
+  member vni 10020
+    ingress-replication protocol bgp
+  member vni 50001 associate-vrf
+  member vni 50002 associate-vrf
+
+! ── BGP EVPN ─────────────────────────────────────────────────────────
+router bgp 65000
+  router-id 10.0.0.13
+  address-family l2vpn evpn
+  template peer SPINE
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+  neighbor 10.0.0.1
+    inherit peer SPINE
+    description SPINE-1
+  neighbor 10.0.0.2
+    inherit peer SPINE
+    description SPINE-2
+  vrf TENANT-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+  vrf TENANT-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+
+evpn
+  vni 10010 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+  vni 10020 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+
+================================================================================
+  LEAF-4 CONFIGURATION
+  Access: HOST-B2 (Tenant-B, VLAN 20)
+================================================================================
+
+hostname LEAF-4
+
+nv overlay evpn
+feature ospf
+feature bgp
+feature nv overlay
+feature vn-segment-vlan-based
+feature interface-vlan
+
+fabric forwarding anycast-gateway-mac 0000.2222.3333
+
+! ── VLANs & VNI Mappings ─────────────────────────────────────────────
+vlan 10
+  name TENANT-A-DATA
+  vn-segment 10010
+
+vlan 20
+  name TENANT-B-DATA
+  vn-segment 10020
+
+vlan 901
+  name TENANT-A-L3VNI
+  vn-segment 50001
+
+vlan 902
+  name TENANT-B-L3VNI
+  vn-segment 50002
+
+! ── VRFs ─────────────────────────────────────────────────────────────
+vrf context TENANT-A
+  vni 50001
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+vrf context TENANT-B
+  vni 50002
+  rd auto
+  address-family ipv4 unicast
+    route-target both auto
+    route-target both auto evpn
+
+! ── Underlay ─────────────────────────────────────────────────────────
+router ospf UNDERLAY
+  router-id 10.0.0.14
+
+interface loopback0
+  description Router-ID / BGP Peering
+  ip address 10.0.0.14/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface loopback1
+  description VTEP Source
+  ip address 10.0.1.14/32
+  ip router ospf UNDERLAY area 0.0.0.0
+
+interface Ethernet1/1
+  description to SPINE-1 Eth1/4
+  no switchport
+  mtu 9216
+  ip address 10.1.1.7/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+interface Ethernet1/2
+  description to SPINE-2 Eth1/4
+  no switchport
+  mtu 9216
+  ip address 10.1.2.7/31
+  ip router ospf UNDERLAY area 0.0.0.0
+  no shutdown
+
+! ── Access Port ──────────────────────────────────────────────────────
+interface Ethernet1/3
+  description to HOST-B2
+  switchport
+  switchport mode access
+  switchport access vlan 20
+  no shutdown
+
+! ── SVIs ─────────────────────────────────────────────────────────────
+interface Vlan10
+  description Tenant-A Data Gateway
+  no shutdown
+  vrf member TENANT-A
+  ip address 192.168.10.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan20
+  description Tenant-B Data Gateway
+  no shutdown
+  vrf member TENANT-B
+  ip address 192.168.20.1/24
+  fabric forwarding mode anycast-gateway
+
+interface Vlan901
+  description Tenant-A L3VNI SVI
+  no shutdown
+  vrf member TENANT-A
+  ip forward
+
+interface Vlan902
+  description Tenant-B L3VNI SVI
+  no shutdown
+  vrf member TENANT-B
+  ip forward
+
+! ── VXLAN (NVE) ──────────────────────────────────────────────────────
+interface nve1
+  no shutdown
+  host-reachability protocol bgp
+  source-interface loopback1
+  member vni 10010
+    ingress-replication protocol bgp
+  member vni 10020
+    ingress-replication protocol bgp
+  member vni 50001 associate-vrf
+  member vni 50002 associate-vrf
+
+! ── BGP EVPN ─────────────────────────────────────────────────────────
+router bgp 65000
+  router-id 10.0.0.14
+  address-family l2vpn evpn
+  template peer SPINE
+    remote-as 65000
+    update-source loopback0
+    address-family l2vpn evpn
+      send-community extended
+  neighbor 10.0.0.1
+    inherit peer SPINE
+    description SPINE-1
+  neighbor 10.0.0.2
+    inherit peer SPINE
+    description SPINE-2
+  vrf TENANT-A
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+  vrf TENANT-B
+    address-family ipv4 unicast
+      advertise l2vpn evpn
+
+evpn
+  vni 10010 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+  vni 10020 l2
+    rd auto
+    route-target import auto
+    route-target export auto
+
+
+================================================================================
+  HOST CONFIGURATIONS (VPCS or Linux)
+================================================================================
+
+If using VPCS in Eve-NG:
+  HOST-A1:  ip 192.168.10.10 255.255.255.0 192.168.10.1
+  HOST-B1:  ip 192.168.20.10 255.255.255.0 192.168.20.1
+  HOST-A2:  ip 192.168.10.20 255.255.255.0 192.168.10.1
+  HOST-B2:  ip 192.168.20.20 255.255.255.0 192.168.20.1
+
+If using Alpine Linux:
+  HOST-A1:  ifconfig eth0 192.168.10.10 netmask 255.255.255.0 up
+            route add default gw 192.168.10.1
+  HOST-B1:  ifconfig eth0 192.168.20.10 netmask 255.255.255.0 up
+            route add default gw 192.168.20.1
+  HOST-A2:  ifconfig eth0 192.168.10.20 netmask 255.255.255.0 up
+            route add default gw 192.168.10.1
+  HOST-B2:  ifconfig eth0 192.168.20.20 netmask 255.255.255.0 up
+            route add default gw 192.168.20.1
+
+
+================================================================================
+  VERIFICATION COMMANDS
+================================================================================
+
+STEP 1 — Verify Underlay (OSPF)
+  show ip ospf neighbors
+  show ip route ospf
+  ping 10.0.0.1    ! from any leaf, verify spine loopback reachability
+  ping 10.0.1.11   ! from any spine, verify VTEP loopback reachability
+
+STEP 2 — Verify BGP EVPN Sessions
+  show bgp l2vpn evpn summary
+  ! All neighbors should be in "Established" state
+
+STEP 3 — Verify NVE / VXLAN
+  show nve peers
+  show nve vni
+  show vxlan interface
+
+STEP 4 — Verify EVPN Routes
+  show bgp l2vpn evpn
+  show bgp l2vpn evpn vni-id 10010
+  show bgp l2vpn evpn vni-id 10020
+  show l2route evpn mac all
+  show l2route evpn mac-ip all
+
+STEP 5 — Verify Tenant Routing
+  show ip route vrf TENANT-A
+  show ip route vrf TENANT-B
+  show ip arp vrf TENANT-A
+  show ip arp vrf TENANT-B
+
+STEP 6 — End-to-End Connectivity Tests
+  ! From HOST-A1:
+  ping 192.168.10.20    ← should succeed (HOST-A2, same tenant)
+  ping 192.168.20.10    ← should FAIL   (HOST-B1, different tenant)
+
+  ! From HOST-B1:
+  ping 192.168.20.20    ← should succeed (HOST-B2, same tenant)
+  ping 192.168.10.10    ← should FAIL   (HOST-A1, different tenant)
+
+STEP 7 — EVPN Route Type Inspection
+  show bgp l2vpn evpn route-type 2    ! MAC/IP routes (Type-2)
+  show bgp l2vpn evpn route-type 3    ! Inclusive Multicast (Type-3)
+  show bgp l2vpn evpn route-type 5    ! IP Prefix routes (Type-5)
+
+
+================================================================================
+  EVE-NG WIRING GUIDE
+================================================================================
+
+  SPINE-1 Eth1/1  ───────  LEAF-1 Eth1/1
+  SPINE-1 Eth1/2  ───────  LEAF-2 Eth1/1
+  SPINE-1 Eth1/3  ───────  LEAF-3 Eth1/1
+  SPINE-1 Eth1/4  ───────  LEAF-4 Eth1/1
+  SPINE-2 Eth1/1  ───────  LEAF-1 Eth1/2
+  SPINE-2 Eth1/2  ───────  LEAF-2 Eth1/2
+  SPINE-2 Eth1/3  ───────  LEAF-3 Eth1/2
+  SPINE-2 Eth1/4  ───────  LEAF-4 Eth1/2
+  LEAF-1  Eth1/3  ───────  HOST-A1 eth0
+  LEAF-2  Eth1/3  ───────  HOST-B1 eth0
+  LEAF-3  Eth1/3  ───────  HOST-A2 eth0
+  LEAF-4  Eth1/3  ───────  HOST-B2 eth0
+
+  Total connections: 12

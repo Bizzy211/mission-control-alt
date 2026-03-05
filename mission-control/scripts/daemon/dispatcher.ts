@@ -4,7 +4,7 @@ import path from "path";
 import { logger } from "./logger";
 import { AgentRunner, parseClaudeOutput } from "./runner";
 import { HealthMonitor } from "./health";
-import { buildTaskPrompt, buildScheduledPrompt, getPendingTasks, isTaskUnblocked, hasPendingDecision } from "./prompt-builder";
+import { buildScheduledPrompt, getPendingTasks, isTaskUnblocked, hasPendingDecision } from "./prompt-builder";
 import type { DaemonConfig, MissionsFile } from "./types";
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -82,6 +82,25 @@ export class Dispatcher {
     return Math.min(base * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MINUTES);
   }
 
+  // ─── Active Runs ────────────────────────────────────────────────────────
+
+  /**
+   * Read active-runs.json and return the set of currently running task IDs.
+   * run-task.ts maintains this file — it's the source of truth for running tasks.
+   */
+  private getRunningTaskIds(): Set<string> {
+    try {
+      if (!existsSync(ACTIVE_RUNS_FILE)) return new Set();
+      const raw = readFileSync(ACTIVE_RUNS_FILE, "utf-8");
+      const data = JSON.parse(raw) as { runs: Array<{ taskId: string; status: string }> };
+      return new Set(
+        data.runs.filter((r) => r.status === "running").map((r) => r.taskId),
+      );
+    } catch {
+      return new Set();
+    }
+  }
+
   // ─── Polling ────────────────────────────────────────────────────────────
 
   /**
@@ -107,10 +126,13 @@ export class Dispatcher {
 
       logger.info("dispatcher", `Found ${pendingTasks.length} pending task(s)`);
 
+      // Read active-runs.json to check which tasks are already running
+      const runningTaskIds = this.getRunningTaskIds();
+
       // 3. Filter to dispatchable tasks
       const dispatchable = pendingTasks.filter(task => {
-        // Already running?
-        if (this.health.isTaskRunning(task.id)) {
+        // Already running? (check active-runs.json, written by run-task.ts)
+        if (runningTaskIds.has(task.id)) {
           logger.debug("dispatcher", `Skipping ${task.id} — already running`);
           return false;
         }
@@ -149,10 +171,10 @@ export class Dispatcher {
         return;
       }
 
-      // 4. Dispatch up to concurrency limit
-      const availableSlots = this.config.concurrency.maxParallelAgents - this.health.activeCount();
+      // 4. Dispatch up to concurrency limit (use active-runs.json count, not in-memory health)
+      const availableSlots = this.config.concurrency.maxParallelAgents - runningTaskIds.size;
       if (availableSlots <= 0) {
-        logger.info("dispatcher", `No available slots (${this.health.activeCount()}/${this.config.concurrency.maxParallelAgents} agents running)`);
+        logger.info("dispatcher", `No available slots (${runningTaskIds.size}/${this.config.concurrency.maxParallelAgents} agents running)`);
         return;
       }
 
@@ -190,7 +212,8 @@ export class Dispatcher {
     if (dueRetries.length === 0) return;
 
     // Check available concurrency slots
-    const availableSlots = this.config.concurrency.maxParallelAgents - this.health.activeCount();
+    const runningCount = this.getRunningTaskIds().size;
+    const availableSlots = this.config.concurrency.maxParallelAgents - runningCount;
     const toRetry = dueRetries.slice(0, Math.max(0, availableSlots));
     const deferred = dueRetries.slice(Math.max(0, availableSlots));
 
@@ -210,64 +233,34 @@ export class Dispatcher {
 
   /**
    * Dispatch a single task to its assigned agent.
+   * Spawns run-task.ts as a detached process so that all bookkeeping
+   * (mark in-progress/done, inbox report, activity log, context regen)
+   * is handled consistently.
    */
-  private async dispatchTask(taskId: string, agentId: string): Promise<void> {
+  private dispatchTask(taskId: string, agentId: string): void {
     try {
       logger.info("dispatcher", `Dispatching task ${taskId} to agent "${agentId}"`);
 
-      // Build task data for prompt (re-read to get fresh state)
-      const { getTask } = await import("./prompt-builder");
-      const task = getTask(taskId);
-      if (!task) {
-        logger.error("dispatcher", `Task ${taskId} not found`);
-        return;
+      const scriptPath = path.resolve(__dirname, "run-task.ts");
+      const args = [
+        "--import", "tsx",
+        scriptPath,
+        taskId,
+        "--source", "daemon-poll",
+      ];
+      if (this.config.execution.agentTeams) {
+        args.push("--agent-teams");
       }
 
-      const prompt = buildTaskPrompt(agentId, task);
-
-      // Start tracking the session
-      const sessionId = this.health.startSession(agentId, taskId, "task", 0);
-
-      // Spawn the Claude Code process
-      const spawnPromise = this.runner.spawnAgent({
-        prompt,
-        maxTurns: this.config.execution.maxTurns,
-        timeoutMinutes: this.config.execution.timeoutMinutes,
-        skipPermissions: this.config.execution.skipPermissions,
-        allowedTools: this.config.execution.allowedTools,
-        cwd: "", // Uses runner default (workspace root)
+      const child = spawn(process.execPath, args, {
+        cwd: WORKSPACE_ROOT,
+        detached: true,
+        stdio: "ignore",
+        shell: false,
       });
+      child.unref();
 
-      // Handle completion asynchronously
-      spawnPromise.then(result => {
-        // Update session PID if we got one
-        if (result.pid > 0) {
-          this.health.updateSessionPid(sessionId, result.pid);
-        }
-
-        // Parse cost/usage from Claude Code output
-        const meta = parseClaudeOutput(result.stdout);
-
-        this.health.endSession(
-          sessionId,
-          result.exitCode,
-          result.stderr || null,
-          result.timedOut,
-          meta.totalCostUsd,
-          meta.numTurns,
-          meta.usage,
-        );
-
-        if (result.exitCode === 0 && !result.timedOut) {
-          logger.info("dispatcher", `Task ${taskId} completed successfully by ${agentId}`);
-        } else {
-          this.handleFailure(taskId, agentId, result);
-        }
-      }).catch(err => {
-        this.health.endSession(sessionId, 1, err instanceof Error ? err.message : String(err), false);
-        logger.error("dispatcher", `Dispatch error for ${taskId}: ${err instanceof Error ? err.message : String(err)}`);
-      });
-
+      logger.info("dispatcher", `Spawned run-task for ${taskId} (pid: ${child.pid})`);
     } catch (err) {
       logger.error("dispatcher", `Failed to dispatch task ${taskId}: ${err instanceof Error ? err.message : String(err)}`);
     }
