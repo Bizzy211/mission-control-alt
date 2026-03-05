@@ -343,10 +343,24 @@ export class Dispatcher {
         if (task.kanban !== "done" || task.deletedAt) continue;
         const rec = task.recurrence as {
           enabled: boolean;
-          intervalDays: number;
+          interval?: number;
+          unit?: string;
+          intervalDays?: number;
           lastScheduledAt: string | null;
         } | null;
-        if (!rec?.enabled || !rec.intervalDays) continue;
+        if (!rec?.enabled) continue;
+        const interval = rec.interval ?? rec.intervalDays ?? 0;
+        const unit = rec.unit ?? "days";
+        if (!interval) continue;
+
+        // Convert interval to milliseconds based on unit
+        let intervalMs: number;
+        switch (unit) {
+          case "hours":  intervalMs = interval * 60 * 60 * 1000; break;
+          case "weeks":  intervalMs = interval * 7 * 24 * 60 * 60 * 1000; break;
+          case "months": intervalMs = interval * 30 * 24 * 60 * 60 * 1000; break;
+          default:       intervalMs = interval * 24 * 60 * 60 * 1000; break; // days
+        }
 
         // Determine anchor: lastScheduledAt > completedAt > updatedAt
         const anchor = rec.lastScheduledAt
@@ -354,8 +368,8 @@ export class Dispatcher {
           || (task.updatedAt as string);
         if (!anchor) continue;
 
-        const elapsed = (now.getTime() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24);
-        if (elapsed < rec.intervalDays) continue;
+        const elapsedMs = now.getTime() - new Date(anchor).getTime();
+        if (elapsedMs < intervalMs) continue;
 
         // Clone the task
         const newId = randomUUID();
@@ -374,7 +388,7 @@ export class Dispatcher {
             ? (task.subtasks as Array<Record<string, unknown>>).map((s) => ({ ...s, done: false }))
             : [],
           // Keep recurrence enabled on clone
-          recurrence: { enabled: true, intervalDays: rec.intervalDays, lastScheduledAt: null },
+          recurrence: { enabled: true, interval, unit, lastScheduledAt: null },
         };
 
         data.tasks.push(clone);
@@ -386,7 +400,7 @@ export class Dispatcher {
         task.recurrence = rec;
         changed = true;
 
-        logger.info("dispatcher", `Recurring task "${task.title}" → cloned as ${newId} (interval: ${rec.intervalDays}d)`);
+        logger.info("dispatcher", `Recurring task "${task.title}" → cloned as ${newId} (interval: ${interval} ${unit})`);
       }
 
       if (changed) {

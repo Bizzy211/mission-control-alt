@@ -5,7 +5,7 @@ import {
   FolderOpen, File, FileText, FileCode, FileJson,
   ChevronRight, Download, ArrowLeft, Folder, RefreshCw,
   Home, Clock, HardDrive, Search, Music, Film, FileImage,
-  FileSpreadsheet, Globe, ExternalLink,
+  FileSpreadsheet, Globe, ExternalLink, Maximize2, Minimize2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -244,6 +244,7 @@ export default function FilesPage() {
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // ── Fetch directory listing ──────────────────────────────────────────
   const fetchDir = useCallback(async (dirPath: string) => {
@@ -306,6 +307,14 @@ export default function FilesPage() {
 
   // Initial load
   useEffect(() => { fetchDir(""); }, [fetchDir]);
+
+  // Escape key exits fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setIsFullscreen(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isFullscreen]);
 
   // ── Navigation ──────────────────────────────────────────────────────
   const clearViewer = () => { setSelectedFile(null); setViewerType(null); setTextContent(null); setPreviewUrl(null); setFileInfo(null); setFileError(null); };
@@ -703,13 +712,18 @@ export default function FilesPage() {
                   <Badge variant="secondary" className="text-[10px] shrink-0">{formatSize(fileInfo.size)}</Badge>
                   <span className="text-[10px] text-muted-foreground shrink-0 hidden sm:inline">{formatDate(fileInfo.modified)}</span>
                 </div>
-                {downloadUrl && (
-                  <a href={downloadUrl} download className="inline-flex shrink-0">
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                      <Download className="h-3 w-3" /> Download
-                    </Button>
-                  </a>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setIsFullscreen(true)}>
+                    <Maximize2 className="h-3 w-3" /> Fullscreen
+                  </Button>
+                  {downloadUrl && (
+                    <a href={downloadUrl} download className="inline-flex">
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                        <Download className="h-3 w-3" /> Download
+                      </Button>
+                    </a>
+                  )}
+                </div>
               </div>
 
               {/* Content */}
@@ -722,6 +736,36 @@ export default function FilesPage() {
           )}
         </Card>
       </div>
+
+      {/* Fullscreen overlay */}
+      {isFullscreen && viewerType && fileInfo && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              {(() => { const I = getFileIcon(fileInfo.name, "file"); return <I className="h-4 w-4 text-muted-foreground shrink-0" />; })()}
+              <span className="text-sm font-medium truncate">{fileInfo.name}</span>
+              <Badge variant="secondary" className="text-[10px] shrink-0">{formatSize(fileInfo.size)}</Badge>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {downloadUrl && (
+                <a href={downloadUrl} download className="inline-flex">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                    <Download className="h-3 w-3" /> Download
+                  </Button>
+                </a>
+              )}
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setIsFullscreen(false)}>
+                <Minimize2 className="h-3 w-3" /> Exit
+              </Button>
+            </div>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-6 max-w-5xl mx-auto">
+              {renderViewer()}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plug, Plus, Trash2, Pencil, Terminal, Key } from "lucide-react";
+import { Plug, Plus, Trash2, Pencil, Terminal, Key, HelpCircle, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export default function McpServersPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<McpServer | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -125,12 +126,19 @@ export default function McpServersPage() {
           <Plug className="h-5 w-5" />
           MCP Servers
         </h1>
-        <Tip content="Add a new MCP server for agents to use">
-          <Button size="sm" className="gap-1.5" onClick={openAdd}>
-            <Plus className="h-3.5 w-3.5" />
-            Add Server
-          </Button>
-        </Tip>
+        <div className="flex items-center gap-1.5">
+          <Tip content="How to configure MCP servers">
+            <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => setHelpOpen(true)}>
+              <HelpCircle className="h-3.5 w-3.5" />
+            </Button>
+          </Tip>
+          <Tip content="Add a new MCP server for agents to use">
+            <Button size="sm" className="gap-1.5" onClick={openAdd}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Server
+            </Button>
+          </Tip>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -287,6 +295,83 @@ export default function McpServersPage() {
               {editing ? "Update" : "Add Server"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Help Dialog */}
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              MCP Server Configuration
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              MCP (Model Context Protocol) servers give agents access to external tools and data.
+              Configure them using one of these transport styles:
+            </p>
+            <div className="space-y-3">
+              <div className="rounded-lg border p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">stdio (Local Process)</p>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Runs a local command that communicates over stdin/stdout. Most common for npm-based MCP servers.
+                </p>
+                <div className="rounded bg-muted/50 p-2 font-mono text-xs space-y-0.5">
+                  <div>Command: <span className="text-primary">npx</span></div>
+                  <div>Args: <span className="text-primary">-y @modelcontextprotocol/server-github</span></div>
+                  <div>Env: <span className="text-primary">GITHUB_TOKEN=ghp_xxx</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">SSE (Server-Sent Events)</p>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Connects to a remote server via HTTP with Server-Sent Events for real-time streaming.
+                </p>
+                <div className="rounded bg-muted/50 p-2 font-mono text-xs space-y-0.5">
+                  <div>Command: <span className="text-primary">npx</span></div>
+                  <div>Args: <span className="text-primary">-y mcp-remote https://mcp.example.com/sse</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Plug className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">Streamable HTTP</p>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Newer transport using standard HTTP requests. Use for servers supporting the streamable HTTP protocol.
+                </p>
+                <div className="rounded bg-muted/50 p-2 font-mono text-xs space-y-0.5">
+                  <div>Command: <span className="text-primary">npx</span></div>
+                  <div>Args: <span className="text-primary">-y mcp-remote https://mcp.example.com/mcp</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg border p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">Docker-based</p>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Run an MCP server in a Docker container for isolation and reproducibility.
+                </p>
+                <div className="rounded bg-muted/50 p-2 font-mono text-xs space-y-0.5">
+                  <div>Command: <span className="text-primary">docker</span></div>
+                  <div>Args: <span className="text-primary">run -i --rm mcp/server-name</span></div>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All servers are saved to <code className="bg-muted px-1 py-0.5 rounded text-[11px]">.mcp.json</code> and
+              become available to agents on their next spawn.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

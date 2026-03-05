@@ -17,7 +17,9 @@ export async function GET() {
         title: t.title,
         assignedTo: t.assignedTo,
         kanban: t.kanban,
-        intervalDays: t.recurrence!.intervalDays,
+        interval: t.recurrence!.interval ?? t.recurrence!.intervalDays ?? 7,
+        unit: t.recurrence!.unit ?? "days",
+        intervalDays: t.recurrence!.intervalDays ?? t.recurrence!.interval ?? 7,
         lastScheduledAt: t.recurrence!.lastScheduledAt,
         dueDate: t.dueDate,
         projectId: t.projectId,
@@ -37,7 +39,9 @@ export async function GET() {
         title: t.title,
         assignedTo: t.assignedTo,
         kanban: t.kanban,
-        intervalDays: t.recurrence!.intervalDays,
+        interval: t.recurrence!.interval ?? t.recurrence!.intervalDays ?? 7,
+        unit: t.recurrence!.unit ?? "days",
+        intervalDays: t.recurrence!.intervalDays ?? t.recurrence!.interval ?? 7,
         lastScheduledAt: t.recurrence!.lastScheduledAt,
       }))
       .sort(

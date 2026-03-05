@@ -105,7 +105,9 @@ export const taskCreateSchema = z.object({
   dueDate: z.string().max(30).nullable().optional().default(null),
   recurrence: z.object({
     enabled: z.boolean(),
-    intervalDays: z.number().min(1).max(365),
+    interval: z.number().min(1).max(365).optional(),
+    unit: z.enum(["hours", "days", "weeks", "months"]).optional(),
+    intervalDays: z.number().min(1).max(365).optional(),
     lastScheduledAt: z.string().nullable(),
   }).nullable().optional().default(null),
   deletedAt: z.string().nullable().optional().default(null),
@@ -134,7 +136,9 @@ export const taskUpdateSchema = z.object({
   dueDate: z.string().max(30).nullable().optional(),
   recurrence: z.object({
     enabled: z.boolean(),
-    intervalDays: z.number().min(1).max(365),
+    interval: z.number().min(1).max(365).optional(),
+    unit: z.enum(["hours", "days", "weeks", "months"]).optional(),
+    intervalDays: z.number().min(1).max(365).optional(),
     lastScheduledAt: z.string().nullable(),
   }).nullable().optional(),
   deletedAt: z.string().nullable().optional(),

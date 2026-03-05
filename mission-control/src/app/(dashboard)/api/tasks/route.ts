@@ -289,7 +289,8 @@ export async function POST(request: Request) {
       notes: body.notes,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      dueDate: null,
+      dueDate: body.dueDate ?? null,
+      recurrence: body.recurrence ?? null,
       completedAt: null,
       deletedAt: null,
     };

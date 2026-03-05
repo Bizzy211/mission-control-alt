@@ -154,6 +154,10 @@ export interface TaskComment {
   createdAt: string;
 }
 
+// ─── Recurrence ───────────────────────────────────────────────────────────────
+
+export type RecurrenceUnit = "hours" | "days" | "weeks" | "months";
+
 // ─── Tasks ────────────────────────────────────────────────────────────────────
 
 export interface Task {
@@ -179,7 +183,9 @@ export interface Task {
   dueDate: string | null;
   recurrence?: {
     enabled: boolean;
-    intervalDays: number;
+    interval?: number;
+    unit?: RecurrenceUnit;
+    intervalDays?: number;
     lastScheduledAt: string | null;
   } | null;
   createdAt: string;

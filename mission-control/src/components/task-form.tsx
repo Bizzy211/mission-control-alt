@@ -39,7 +39,7 @@ export interface TaskFormData {
   blockedBy: string[];
   estimatedMinutes: number | null;
   dueDate: string | null;
-  recurrence: { enabled: boolean; intervalDays: number; lastScheduledAt: string | null } | null;
+  recurrence: { enabled: boolean; interval: number; unit: "hours" | "days" | "weeks" | "months"; lastScheduledAt: string | null } | null;
   acceptanceCriteria: string;
 }
 
@@ -74,7 +74,9 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
     blockedBy: initial?.blockedBy ?? [],
     estimatedMinutes: initial?.estimatedMinutes ?? null,
     dueDate: initial?.dueDate ?? null,
-    recurrence: initial?.recurrence ?? null,
+    recurrence: initial?.recurrence
+      ? { enabled: initial.recurrence.enabled, interval: initial.recurrence.interval || 7, unit: initial.recurrence.unit || "days", lastScheduledAt: initial.recurrence.lastScheduledAt }
+      : null,
     acceptanceCriteria: initial?.acceptanceCriteria ?? "",
   });
 
@@ -437,12 +439,12 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
           <Repeat className="h-3.5 w-3.5" />
           Repeat Schedule
         </Label>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={() => setForm({
               ...form,
-              recurrence: form.recurrence ? null : { enabled: true, intervalDays: 7, lastScheduledAt: null },
+              recurrence: form.recurrence ? null : { enabled: true, interval: 7, unit: "days", lastScheduledAt: null },
             })}
             className={cn(
               "flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors",
@@ -459,14 +461,30 @@ export function TaskForm({ initial, projects, goals, allTasks, currentTaskId, on
                 type="number"
                 min={1}
                 max={365}
-                value={form.recurrence.intervalDays}
+                value={form.recurrence.interval}
                 onChange={(e) => setForm({
                   ...form,
-                  recurrence: { ...form.recurrence!, intervalDays: parseInt(e.target.value, 10) || 7 },
+                  recurrence: { ...form.recurrence!, interval: parseInt(e.target.value, 10) || 1 },
                 })}
                 className="h-7 w-16 text-xs text-center"
               />
-              <span className="text-muted-foreground">day{form.recurrence.intervalDays !== 1 ? "s" : ""}</span>
+              <Select
+                value={form.recurrence.unit}
+                onValueChange={(v) => setForm({
+                  ...form,
+                  recurrence: { ...form.recurrence!, unit: v as "hours" | "days" | "weeks" | "months" },
+                })}
+              >
+                <SelectTrigger className="h-7 w-[100px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hours">hour(s)</SelectItem>
+                  <SelectItem value="days">day(s)</SelectItem>
+                  <SelectItem value="weeks">week(s)</SelectItem>
+                  <SelectItem value="months">month(s)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
