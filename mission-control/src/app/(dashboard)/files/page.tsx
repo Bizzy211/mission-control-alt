@@ -345,7 +345,7 @@ export default function FilesPage() {
   }, [entries]);
 
   // ─── Viewer renderer ─────────────────────────────────────────────────
-  function renderViewer() {
+  function renderViewer(fullscreen = false) {
     if (!viewerType || !fileInfo) return null;
     const dl = downloadUrl ?? "#";
 
@@ -403,14 +403,14 @@ export default function FilesPage() {
 
       case "html":
         return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className={cn("space-y-2", fullscreen && "flex flex-col h-[calc(100vh-5rem)]")}>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
               <Globe className="h-3 w-3" /> HTML Preview (sandboxed)
             </div>
             <iframe
               srcDoc={textContent ?? ""}
               sandbox="allow-same-origin"
-              className="w-full min-h-[600px] rounded-lg border bg-white"
+              className={cn("w-full rounded-lg border bg-white", fullscreen ? "flex-1 min-h-0" : "min-h-[600px]")}
               title="HTML Preview"
             />
           </div>
@@ -431,8 +431,8 @@ export default function FilesPage() {
 
       case "pdf":
         return (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className={cn("space-y-2", fullscreen && "flex flex-col h-[calc(100vh-5rem)]")}>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
               <FileText className="h-3 w-3" /> PDF Document
               <a href={previewUrl ?? "#"} target="_blank" rel="noopener noreferrer" className="ml-auto text-primary hover:underline flex items-center gap-1">
                 Open in new tab <ExternalLink className="h-3 w-3" />
@@ -440,7 +440,7 @@ export default function FilesPage() {
             </div>
             <iframe
               src={previewUrl ?? ""}
-              className="w-full min-h-[700px] rounded-lg border"
+              className={cn("w-full rounded-lg border", fullscreen ? "flex-1 min-h-0" : "min-h-[700px]")}
               title="PDF Preview"
             />
           </div>
@@ -452,7 +452,7 @@ export default function FilesPage() {
             <img
               src={previewUrl ?? ""}
               alt={fileInfo.name}
-              className="max-w-full max-h-[70vh] rounded-lg shadow-lg object-contain"
+              className={cn("max-w-full rounded-lg shadow-lg object-contain", fullscreen ? "max-h-[calc(100vh-10rem)]" : "max-h-[70vh]")}
             />
             <p className="text-xs text-muted-foreground">
               {fileInfo.name} — {formatSize(fileInfo.size)}
@@ -480,7 +480,7 @@ export default function FilesPage() {
             <video
               controls
               src={previewUrl ?? ""}
-              className="max-w-full max-h-[70vh] rounded-lg shadow-lg"
+              className={cn("max-w-full rounded-lg shadow-lg", fullscreen ? "max-h-[calc(100vh-10rem)]" : "max-h-[70vh]")}
             />
             <p className="text-xs text-muted-foreground">
               {fileInfo.name} — {formatSize(fileInfo.size)}
@@ -759,11 +759,9 @@ export default function FilesPage() {
               </Button>
             </div>
           </div>
-          <ScrollArea className="flex-1">
-            <div className="p-6 max-w-5xl mx-auto">
-              {renderViewer()}
-            </div>
-          </ScrollArea>
+          <div className="flex-1 overflow-auto p-4">
+            {renderViewer(true)}
+          </div>
         </div>
       )}
     </div>

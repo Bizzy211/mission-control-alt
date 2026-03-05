@@ -55,7 +55,7 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const activeAgents = agents.filter((a) => a.status === "active");
@@ -202,14 +202,15 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm cursor-pointer" onClick={onClose} />
 
-      {/* Panel */}
-      <aside
-        ref={panelRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-label="Task details"
-        className="fixed right-0 top-0 z-50 flex h-full w-full max-w-full md:max-w-lg flex-col border-l bg-card shadow-2xl animate-in slide-in-from-right duration-200 outline-none"
-      >
+      {/* Centered Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 pointer-events-none">
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-label="Task details"
+          className="flex flex-col w-full max-w-4xl max-h-[90vh] bg-card rounded-xl shadow-2xl border animate-in zoom-in-95 fade-in duration-200 outline-none pointer-events-auto"
+        >
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -293,7 +294,7 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
                 <Trash2 className="h-4 w-4" />
               </Button>
             </Tip>
-            <Tip content="Close panel">
+            <Tip content="Close">
               <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
                 <X className="h-4 w-4" />
               </Button>
@@ -449,7 +450,8 @@ export function TaskDetailPanel({ task, projects, goals, allTasks, onUpdate, onD
             <span>Est: {task.estimatedMinutes}m</span>
           )}
         </div>
-      </aside>
+        </div>
+      </div>
 
       <ConfirmDialog
         open={showDeleteConfirm}
