@@ -170,6 +170,26 @@ function extractSummary(stdout: string): string {
 }
 
 /**
+ * Strip markdown formatting to produce plain-text suitable for task comments.
+ * Removes headers, bullets, code fences, bold/italic markers, inline code backticks, etc.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")       // remove fenced code blocks
+    .replace(/^#{1,6}\s+/gm, "")          // strip heading markers
+    .replace(/\*\*(.+?)\*\*/g, "$1")      // bold → plain
+    .replace(/\*(.+?)\*/g, "$1")          // italic → plain
+    .replace(/__(.+?)__/g, "$1")           // bold alt → plain
+    .replace(/_(.+?)_/g, "$1")             // italic alt → plain
+    .replace(/`([^`]+)`/g, "$1")           // inline code → plain
+    .replace(/^[\-*+]\s+/gm, "")          // strip bullet markers
+    .replace(/^\d+\.\s+/gm, "")           // strip numbered list markers
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // [text](url) → text
+    .replace(/\n{3,}/g, "\n\n")            // collapse excessive newlines
+    .trim();
+}
+
+/**
  * Post-completion side effects: mark task done, post inbox message, log activity.
  * Each step is wrapped in its own try/catch — if one fails, others still execute.
  */
@@ -1088,15 +1108,17 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
     if (finalStatus === "completed" && result.exitCode === 0) {
       handleTaskCompletion(taskId, task.assignedTo, result.stdout);
 
-      // Add human-like completion comment with deliverable paths
-      const summary = extractSummary(result.stdout);
+      // Add natural-sounding completion comment
+      const rawSummary = extractSummary(result.stdout);
+      const plainSummary = stripMarkdown(rawSummary).slice(0, 300);
       const deliverables = extractDeliverablePaths(result.stdout);
-      const costNote = meta.totalCostUsd != null ? ` ($${meta.totalCostUsd.toFixed(2)})` : "";
-      let commentBody = `Done — ${summary.slice(0, 300)}`;
+      const openers = ["All done.", "Wrapped this up.", "Finished.", "This is done.", "Done."];
+      const opener = openers[Math.floor(Math.random() * openers.length)];
+      let commentBody = `${opener} ${plainSummary}`;
       if (deliverables.length > 0) {
-        commentBody += `\n\nSaved to ${deliverables.map(p => `\`${p}\``).join(", ")}.`;
+        const names = deliverables.map(p => p.split("/").pop() ?? p).join(", ");
+        commentBody += `\n\nOutput saved to ${names}.`;
       }
-      commentBody += `\n\n_${meta.numTurns ?? "?"} turns${costNote}_`;
       addTaskComment(taskId, task.assignedTo, commentBody);
     }
 

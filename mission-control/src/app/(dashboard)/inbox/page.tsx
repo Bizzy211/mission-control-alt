@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Inbox, Send, User, Search, Code, Megaphone, BarChart3, Mail, MailOpen, Archive, Plus, Reply, MessageSquare, ChevronRight, ChevronDown, Loader2, Bot, Square } from "lucide-react";
+import { Inbox, Send, User, Search, Code, Megaphone, BarChart3, Mail, MailOpen, Archive, Plus, Reply, MessageSquare, ChevronRight, ChevronDown, Loader2, Bot, Square, CheckCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +124,7 @@ function groupIntoThreads(messages: InboxMessage[]): Thread[] {
 // ─── Page Component ─────────────────────────────────────────────────────────
 
 export default function InboxPage() {
-  const { messages, loading, create: createMessage, update: updateMessage, error: inboxError, refetch } = useInbox();
+  const { messages, loading, create: createMessage, update: updateMessage, bulkUpdate, error: inboxError, refetch } = useInbox();
   const { tasks } = useTasks();
   const [filterAgent, setFilterAgent] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -199,6 +199,12 @@ export default function InboxPage() {
   }, [messages, filterAgent, filterStatus]);
 
   const unreadCount = messages.filter((m) => m.status === "unread").length;
+
+  const handleMarkAllRead = useCallback(async () => {
+    const unreadIds = messages.filter((m) => m.status === "unread").map((m) => m.id);
+    if (unreadIds.length === 0) return;
+    await bulkUpdate(unreadIds, { status: "read" as const });
+  }, [messages, bulkUpdate]);
 
   const handleMarkThreadRead = async (thread: Thread) => {
     const unread = thread.messages.filter((m) => m.status === "unread");
@@ -341,12 +347,22 @@ export default function InboxPage() {
             <Badge variant="destructive">{unreadCount} unread</Badge>
           )}
         </div>
-        <Tip content="Write a new message">
-          <Button size="sm" className="gap-1.5" onClick={() => setComposeOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Compose
-          </Button>
-        </Tip>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <Tip content="Mark all messages as read">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handleMarkAllRead}>
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
+              </Button>
+            </Tip>
+          )}
+          <Tip content="Write a new message">
+            <Button size="sm" className="gap-1.5" onClick={() => setComposeOpen(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Compose
+            </Button>
+          </Tip>
+        </div>
       </div>
 
       {/* Filters */}
