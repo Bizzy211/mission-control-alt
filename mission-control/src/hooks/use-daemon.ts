@@ -59,6 +59,8 @@ interface DaemonConfig {
     allowedTools: string[];
     agentTeams: boolean;
     claudeBinaryPath: string | null;
+    openrouterModel: string;
+    openrouterBaseUrl: string;
     maxTaskContinuations: number;
   };
   inbox: {
@@ -66,6 +68,7 @@ interface DaemonConfig {
     maxTurnsPerSession: number;
     timeoutPerSessionMinutes: number;
   };
+  aiProvider: "claude-code" | "openrouter";
 }
 
 interface DaemonData {
@@ -97,8 +100,9 @@ export function useDaemon(): DaemonData {
     polling: { enabled: true, intervalMinutes: 5 },
     concurrency: { maxParallelAgents: 3 },
     schedule: {},
-    execution: { maxTurns: 25, timeoutMinutes: 30, retries: 1, retryDelayMinutes: 5, skipPermissions: false, allowedTools: ["Edit", "Write"], agentTeams: false, claudeBinaryPath: null, maxTaskContinuations: 2 },
+    execution: { maxTurns: 25, timeoutMinutes: 30, retries: 1, retryDelayMinutes: 5, skipPermissions: false, allowedTools: ["Edit", "Write"], agentTeams: false, claudeBinaryPath: null, openrouterModel: "anthropic/claude-sonnet-4-20250514", openrouterBaseUrl: "https://openrouter.ai/api/v1", maxTaskContinuations: 2 },
     inbox: { maxContinuations: 2, maxTurnsPerSession: 25, timeoutPerSessionMinutes: 15 },
+    aiProvider: "openrouter",
   });
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +114,7 @@ export function useDaemon(): DaemonData {
       if (!res.ok) throw new Error("Failed to fetch daemon status");
       const data = await res.json();
       setStatus(data.status);
-      setConfig(data.config);
+      setConfig({ ...data.config, aiProvider: data.aiProvider ?? "openrouter" });
       setIsRunning(data.isRunning);
       setError(null);
     } catch (err) {

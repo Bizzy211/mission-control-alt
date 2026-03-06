@@ -24,7 +24,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/data-seed ./data-seed
 COPY entrypoint.sh ./
-RUN chmod +x entrypoint.sh && mkdir -p /app/data
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh && mkdir -p /app/data
 
 EXPOSE 3000
 ENTRYPOINT ["./entrypoint.sh"]

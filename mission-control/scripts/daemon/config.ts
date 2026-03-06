@@ -31,6 +31,8 @@ const DEFAULT_CONFIG: DaemonConfig = {
     allowedTools: [],
     agentTeams: false,
     claudeBinaryPath: null,
+    openrouterModel: "anthropic/claude-sonnet-4",
+    openrouterBaseUrl: "https://openrouter.ai/api/v1",
     maxTaskContinuations: 2,
   },
   inbox: {
@@ -112,6 +114,12 @@ function validateConfig(config: unknown): DaemonConfig {
     } else if (ex.claudeBinaryPath === null) {
       result.execution.claudeBinaryPath = null;
     }
+    if (typeof ex.openrouterModel === "string" && ex.openrouterModel.trim().length > 0) {
+      result.execution.openrouterModel = ex.openrouterModel.trim();
+    }
+    if (typeof ex.openrouterBaseUrl === "string" && ex.openrouterBaseUrl.trim().length > 0) {
+      result.execution.openrouterBaseUrl = ex.openrouterBaseUrl.trim();
+    }
     if (typeof ex.maxTaskContinuations === "number" && ex.maxTaskContinuations >= 0 && ex.maxTaskContinuations <= 5) {
       result.execution.maxTaskContinuations = ex.maxTaskContinuations;
     }
@@ -148,11 +156,16 @@ export function loadConfig(): DaemonConfig {
     const parsed = JSON.parse(raw);
     const config = validateConfig(parsed);
 
-    // Security warning for skipPermissions
-    if (config.execution.skipPermissions) {
-      logger.security("config", "⚠ skipPermissions is ENABLED — Claude Code will bypass all permission prompts");
-    } else if (config.execution.allowedTools.length > 0) {
-      logger.info("config", `Allowed tools: ${config.execution.allowedTools.join(", ")}`);
+    // Provider-specific logging
+    const provider = process.env.AI_PROVIDER === "claude-code" ? "claude-code" : "openrouter";
+    if (provider === "claude-code") {
+      if (config.execution.skipPermissions) {
+        logger.security("config", "⚠ skipPermissions is ENABLED — Claude Code will bypass all permission prompts");
+      } else if (config.execution.allowedTools.length > 0) {
+        logger.info("config", `Allowed tools: ${config.execution.allowedTools.join(", ")}`);
+      }
+    } else {
+      logger.info("config", `OpenRouter model: ${config.execution.openrouterModel}`);
     }
 
     return config;

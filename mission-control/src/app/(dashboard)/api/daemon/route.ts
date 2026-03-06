@@ -65,10 +65,14 @@ export async function GET() {
     statusObj.pid = null;
   }
 
+  // Derive AI provider from env (server-side only — no NEXT_PUBLIC_ needed)
+  const aiProvider = process.env.AI_PROVIDER === "claude-code" ? "claude-code" : "openrouter";
+
   return NextResponse.json({
     status: statusObj,
     config,
     isRunning,
+    aiProvider,
   });
 }
 
