@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import { AgentRunner, parseClaudeOutput } from "./runner";
 import { HealthMonitor } from "./health";
 import { buildScheduledPrompt, getPendingTasks, isTaskUnblocked, hasPendingDecision } from "./prompt-builder";
+import { isOpenRouter } from "./provider";
 import type { DaemonConfig, MissionsFile } from "./types";
 
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -89,6 +90,27 @@ export class Dispatcher {
     return Math.min(base * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MINUTES);
   }
 
+  // ─── Credit Status Check (OpenRouter only) ──────────────────────────────
+
+  /**
+   * Check if credits are exhausted by reading data/credit-status.json.
+   * Returns true if the status is "exhausted", preventing any new dispatches.
+   * Only relevant in OpenRouter mode — always returns false for Claude Code.
+   * Recovery is automatic: the CreditMonitor updates the file when credits are replenished.
+   */
+  private areCreditsExhausted(): boolean {
+    if (!isOpenRouter()) return false;
+    try {
+      const statusFile = path.join(DATA_DIR, "credit-status.json");
+      if (!existsSync(statusFile)) return false;
+      const raw = readFileSync(statusFile, "utf-8");
+      const data = JSON.parse(raw) as { status?: string };
+      return data.status === "exhausted";
+    } catch {
+      return false;
+    }
+  }
+
   // ─── Active Runs ────────────────────────────────────────────────────────
 
   /**
@@ -120,6 +142,12 @@ export class Dispatcher {
     this.health.setLastPollAt(new Date().toISOString());
 
     try {
+      // 0. Check if credits are exhausted (OpenRouter only) — skip all dispatches if so
+      if (this.areCreditsExhausted()) {
+        logger.info("dispatcher", "Credits exhausted — skipping all dispatches");
+        return;
+      }
+
       // 1. Process due retries first (they have higher priority — already started once)
       await this.processDueRetries();
 

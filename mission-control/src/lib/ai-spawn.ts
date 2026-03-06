@@ -1,11 +1,11 @@
 /**
- * Lightweight Claude Code CLI wrapper for AI generation in Next.js API routes.
+ * AI generation for Next.js API routes.
  *
- * Spawns `claude -p "<prompt>" --max-turns 1 --output-format json` and returns
- * the parsed text result. Used for single-shot generation (no tool use).
+ * Provider-aware: checks AI_PROVIDER env var to decide between:
+ *   - "claude-code": Spawns Claude Code CLI (admin only)
+ *   - "openrouter":  Calls OpenRouter HTTP API (customer default)
  *
- * Reuses the same binary-detection logic from scripts/daemon/runner.ts but
- * without importing the full daemon infrastructure.
+ * Used for single-shot generation (task/mission planning, no tool use).
  */
 
 import { spawn, execSync } from "child_process";
@@ -162,10 +162,100 @@ export interface AISpawnResult {
 }
 
 /**
- * Run a single-shot Claude Code generation.
- * Returns the text content from Claude's response.
+ * Run a single-shot AI generation.
+ * Delegates to Claude Code CLI or OpenRouter based on AI_PROVIDER.
  */
 export async function spawnClaudeGeneration(prompt: string): Promise<AISpawnResult> {
+  const provider = process.env.AI_PROVIDER === "claude-code" ? "claude-code" : "openrouter";
+  if (provider === "openrouter") {
+    return spawnOpenRouterGeneration(prompt);
+  }
+  return spawnClaudeCliGeneration(prompt);
+}
+
+// ─── OpenRouter HTTP Path ───────────────────────────────────────────────────
+
+interface GenerationConfig {
+  model: string;
+  baseUrl: string;
+}
+
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514";
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
+
+function loadGenerationConfig(): GenerationConfig {
+  try {
+    const configPath = path.resolve(process.cwd(), "data", "daemon-config.json");
+    if (existsSync(configPath)) {
+      const config = JSON.parse(readFileSync(configPath, "utf-8"));
+      return {
+        model: config?.execution?.openrouterModel ?? DEFAULT_MODEL,
+        baseUrl: config?.execution?.openrouterBaseUrl ?? DEFAULT_BASE_URL,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { model: DEFAULT_MODEL, baseUrl: DEFAULT_BASE_URL };
+}
+
+async function spawnOpenRouterGeneration(prompt: string): Promise<AISpawnResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY environment variable is not set");
+  }
+
+  const config = loadGenerationConfig();
+  const url = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://thejhccrew.ai",
+        "X-Title": "The JHC Crew Mission Control",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 8192,
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "");
+      throw new Error(`OpenRouter API error ${response.status}: ${errorBody.slice(0, 500)}`);
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    return {
+      text: data.choices?.[0]?.message?.content ?? "",
+      costUsd: null,
+      numTurns: 1,
+    };
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("AI generation timed out (90s)");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ─── Claude Code CLI Path ───────────────────────────────────────────────────
+
+async function spawnClaudeCliGeneration(prompt: string): Promise<AISpawnResult> {
   const { bin, prefixArgs } = findBinary();
 
   const args = [

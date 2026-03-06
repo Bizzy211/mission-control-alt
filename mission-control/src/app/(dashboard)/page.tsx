@@ -43,6 +43,8 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CreditGauge } from "@/components/credit-gauge";
+import { SubscriptionBadge } from "@/components/subscription-badge";
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -64,7 +66,7 @@ const agentIcons: Record<AgentRole, typeof User> = {
 
 export default function CommandCenterPage() {
   const { data, loading, error, refetch } = useDashboardData();
-  const { isRunning: daemonRunning, status: daemonStatus, start: startDaemon, stop: stopDaemon } = useDaemon();
+  const { isRunning: daemonRunning, status: daemonStatus, config: daemonConfig, start: startDaemon, stop: stopDaemon } = useDaemon();
   const { runningTaskIds, activeMissions, isProjectRunning, isMissionActive, runProject, stopProject } = useActiveRuns();
   useFastTaskPoll(runningTaskIds.size > 0, refetch);
 
@@ -426,6 +428,9 @@ export default function CommandCenterPage() {
           </CardContent>
         </Card>
       </Link>
+
+      {/* AI Provider Gauge */}
+      {daemonConfig.aiProvider === "openrouter" ? <CreditGauge /> : <SubscriptionBadge />}
 
       {/* Stats Bar */}
       <div role="region" aria-label="Stats overview" className="grid grid-cols-2 gap-3 sm:grid-cols-5">

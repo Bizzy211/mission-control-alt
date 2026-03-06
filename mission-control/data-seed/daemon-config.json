@@ -15,6 +15,8 @@
     "allowedTools": [],
     "agentTeams": false,
     "claudeBinaryPath": null,
+    "openrouterModel": "anthropic/claude-sonnet-4-20250514",
+    "openrouterBaseUrl": "https://openrouter.ai/api/v1",
     "maxTaskContinuations": 2
   }
 }

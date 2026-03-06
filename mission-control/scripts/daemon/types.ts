@@ -24,6 +24,8 @@ export interface DaemonConfig {
     allowedTools: string[];
     agentTeams: boolean;
     claudeBinaryPath: string | null;
+    openrouterModel: string;
+    openrouterBaseUrl: string;
     maxTaskContinuations: number;
   };
   inbox: {
@@ -197,6 +199,28 @@ export interface RespondRunEntry {
 
 export interface RespondRunsFile {
   runs: RespondRunEntry[];
+}
+
+// ─── Credit Status ───────────────────────────────────────────────────────
+
+/** Credit usage status written by CreditMonitor and read by dispatcher + UI */
+export interface CreditStatus {
+  /** Total credit limit (in USD) from OpenRouter */
+  limit: number;
+  /** Total usage so far (in USD) */
+  usage: number;
+  /** Remaining credits (null if unlimited) */
+  limitRemaining: number | null;
+  /** Percentage of limit used (0–100) */
+  percentUsed: number;
+  /** Current status level */
+  status: "ok" | "warning" | "critical" | "exhausted";
+  /** ISO timestamp of last successful credit check */
+  lastCheckedAt: string;
+  /** ISO timestamp when credits became exhausted (set by 403 or threshold) */
+  exhaustedAt?: string;
+  /** Task ID that triggered credit exhaustion (set reactively by run-task) */
+  exhaustedByTaskId?: string;
 }
 
 // ─── Log Levels ──────────────────────────────────────────────────────────────

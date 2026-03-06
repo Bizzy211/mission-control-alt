@@ -7,6 +7,8 @@ import { HealthMonitor } from "./health";
 import { AgentRunner } from "./runner";
 import { Dispatcher } from "./dispatcher";
 import { Scheduler } from "./scheduler";
+import { isOpenRouter, getProvider } from "./provider";
+import { CreditMonitor } from "./credit-monitor";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -129,14 +131,31 @@ async function handleStart(): Promise<void> {
   const dispatcher = new Dispatcher(config, runner, health);
   const scheduler = new Scheduler(config, dispatcher, health);
 
+  // Initialize credit monitor (OpenRouter only — polls every 5 minutes)
+  let creditMonitor: CreditMonitor | null = null;
+  if (isOpenRouter()) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (apiKey) {
+      const baseUrl = config.execution.openrouterBaseUrl ?? "https://openrouter.ai/api/v1";
+      creditMonitor = new CreditMonitor(apiKey, baseUrl, 5);
+      logger.info("daemon", "Credit monitor initialized (checking every 5 minutes)");
+    } else {
+      logger.warn("daemon", "OPENROUTER_API_KEY not set — credit monitoring disabled");
+    }
+  }
+
   // Write PID file
   writePidFile();
-  logger.info("daemon", `Daemon started (PID: ${process.pid})`);
+  logger.info("daemon", `Daemon started (PID: ${process.pid}, provider: ${getProvider()})`);
 
   // Start scheduler
   scheduler.start();
 
-  // Run initial poll immediately
+  // Run initial credit check (OpenRouter) + task poll
+  if (creditMonitor) {
+    logger.info("daemon", "Running initial credit check...");
+    await creditMonitor.checkCredits();
+  }
   if (config.polling.enabled) {
     logger.info("daemon", "Running initial task poll...");
     await dispatcher.pollAndDispatch();
@@ -188,11 +207,14 @@ async function handleStart(): Promise<void> {
 
   // Keep process alive + periodic maintenance
   // The scheduler's cron jobs keep the event loop active,
-  // but we add a safety interval for uptime tracking + stale session cleanup
+  // but we add a safety interval for uptime tracking + stale session cleanup + credit checks
   setInterval(() => {
     health.cleanStaleSessions(); // Proactively detect dead PIDs
     health.updateUptime();
     health.flush();
+    creditMonitor?.tick().catch((err) => {
+      logger.error("daemon", `Credit monitor tick error: ${err instanceof Error ? err.message : String(err)}`);
+    });
   }, 60_000); // Every minute
 }
 

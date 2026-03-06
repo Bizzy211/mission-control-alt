@@ -90,6 +90,8 @@ export default function LaunchPage() {
         allowedTools: config.execution.allowedTools,
         agentTeams: config.execution.agentTeams,
         claudeBinaryPath: config.execution.claudeBinaryPath,
+        openrouterModel: config.execution.openrouterModel,
+        openrouterBaseUrl: config.execution.openrouterBaseUrl,
         maxTaskContinuations: config.execution.maxTaskContinuations,
       },
       polling: { enabled: config.polling.enabled, intervalMinutes: pollingInterval },

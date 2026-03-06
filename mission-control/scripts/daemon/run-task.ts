@@ -23,6 +23,7 @@ import { AgentRunner, parseClaudeOutput } from "./runner";
 import { buildTaskPrompt, getTask, isTaskUnblocked, hasPendingDecision } from "./prompt-builder";
 import { loadConfig } from "./config";
 import { logger } from "./logger";
+import { isOpenRouter } from "./provider";
 import type { MissionRun, MissionsFile } from "./types";
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
@@ -1039,10 +1040,13 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
     let finalStatus: "completed" | "failed" | "timeout" = "failed";
     let errorMsg = "";
 
+    // Detect credit exhaustion (OpenRouter only) — distinct handling, no retries
+    const creditExhausted = isOpenRouter() && (meta.subtype === "error_credit_exhausted" || result.exitCode === 2);
+
     // Detect if we should continue (timeout or max_turns exceeded)
     const hitMaxTurns = meta.subtype === "error_max_turns";
     const hitTimeout = result.timedOut || meta.subtype === "error_timeout";
-    const shouldContinue = (hitMaxTurns || hitTimeout) && continuationIndex < maxTaskContinuations;
+    const shouldContinue = !creditExhausted && (hitMaxTurns || hitTimeout) && continuationIndex < maxTaskContinuations;
 
     if (run) {
       run.pid = result.pid;
@@ -1102,6 +1106,71 @@ This is session ${continuationIndex + 1}. Previous session(s) ran out of turns o
       logger.info("run-task", `Spawning continuation ${continuationIndex + 1} for task ${taskId}`);
       spawnContinuation(taskId, continuationIndex + 1, runId, source, agentTeams, missionId);
       // Exit — the continuation process takes over
+      return;
+    }
+
+    // ── Credit exhaustion path (OpenRouter only) — halt gracefully, do NOT retry ──
+    if (creditExhausted) {
+      logger.warn("run-task", `Task ${taskId} halted: credit limit reached`);
+
+      // Save partial progress if any
+      if (result.stdout) {
+        const summary = extractSummary(result.stdout);
+        appendTaskProgress(taskId, continuationIndex, summary);
+      }
+
+      // Reset task to not-started (NOT failed — it can resume when credits refill)
+      try {
+        const tasksRaw = readFileSync(TASKS_FILE, "utf-8");
+        const tasksData = JSON.parse(tasksRaw) as { tasks: Array<Record<string, unknown>> };
+        const taskToReset = tasksData.tasks.find((t) => t.id === taskId);
+        if (taskToReset && taskToReset.kanban === "in-progress") {
+          taskToReset.kanban = "not-started";
+          taskToReset.updatedAt = new Date().toISOString();
+          writeFileSync(TASKS_FILE, JSON.stringify(tasksData, null, 2), "utf-8");
+        }
+      } catch { /* non-fatal */ }
+
+      // Write credit-exhausted flag so dispatcher + UI know immediately
+      try {
+        const creditStatusFile = path.join(DATA_DIR, "credit-status.json");
+        let existing: Record<string, unknown> = {};
+        if (existsSync(creditStatusFile)) {
+          try { existing = JSON.parse(readFileSync(creditStatusFile, "utf-8")); } catch { /* fresh */ }
+        }
+        writeFileSync(creditStatusFile, JSON.stringify({
+          ...existing,
+          status: "exhausted",
+          exhaustedAt: new Date().toISOString(),
+          exhaustedByTaskId: taskId,
+          lastCheckedAt: new Date().toISOString(),
+        }, null, 2), "utf-8");
+      } catch { /* non-fatal */ }
+
+      // Post inbox notification
+      try {
+        const inboxRaw = existsSync(INBOX_FILE)
+          ? readFileSync(INBOX_FILE, "utf-8")
+          : '{"messages":[]}';
+        const inboxData = JSON.parse(inboxRaw) as { messages: Array<Record<string, unknown>> };
+        inboxData.messages.push({
+          id: `msg_${Date.now()}`,
+          from: "system",
+          to: "me",
+          type: "alert",
+          taskId,
+          subject: "⚠️ AI Credits Exhausted",
+          body: `Your AI credits for this billing period have been used up. All pending tasks have been paused.\n\nTo continue:\n• Purchase additional credits (top-up)\n• Or wait for your credits to renew on your next billing date\n\nTask "${task.title ?? taskId}" was paused mid-execution. It will automatically resume when credits are available.`,
+          status: "unread",
+          createdAt: new Date().toISOString(),
+          readAt: null,
+        });
+        writeFileSync(INBOX_FILE, JSON.stringify(inboxData, null, 2), "utf-8");
+      } catch { /* non-fatal */ }
+
+      addTaskComment(taskId, task.assignedTo, "Paused — AI credit limit reached for this billing period. I'll resume when credits are available.");
+
+      // Do NOT chain mission dispatch — everything pauses on credit exhaustion
       return;
     }
 
